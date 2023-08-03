@@ -1,0 +1,3 @@
+app:
+  auth_token: "Your OpenAI-Token" # 秘钥
+  socks_url: "socks5://127.0.0.1:10553" # 代理地址
