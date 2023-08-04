@@ -1,10 +1,11 @@
-package main
+package application
 
 import (
 	"regexp"
 	"testing"
 
 	"github.com/hold7techs/go-shim/shim"
+	"github.com/lupguo/copilot_develop/app/domain/entity"
 	"gopkg.in/yaml.v3"
 )
 
@@ -15,14 +16,14 @@ func TestNewBlogMD(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *BlogMD
+		want    *entity.BlogMD
 		wantErr bool
 	}{
 		{"t1", args{filename: "./test.md"}, nil, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			blogMd, err := NewBlogMD(tt.args.filename)
+			blogMd, err := entity.NewBlogMD(tt.args.filename)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewBlogMD() error = %v, wantErr %v", err, tt.wantErr)
 				return

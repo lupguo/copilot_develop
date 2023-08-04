@@ -10,8 +10,9 @@ import (
 // AppConfig 应用配置
 type AppConfig struct {
 	App struct {
-		AuthToken string `yaml:"auth_token"`
-		SocksURL  string `yaml:"socks_url"`
+		AuthToken       string `yaml:"auth_token"`
+		SocksURL        string `yaml:"socks_url"`
+		BlogStoragePath string `yaml:"blog_storage_path"`
 	} `yaml:"app"`
 }
 
@@ -29,4 +30,21 @@ func ParseAppConfig(filename string) (*AppConfig, error) {
 	}
 
 	return &cfg, nil
+}
+
+// InitAppConfig 初始AppConfig配置信息
+func InitAppConfig(filename string) error {
+	cfg, err := ParseAppConfig(filename)
+	if err != nil {
+		return err
+	}
+	defaultAppConfig = cfg
+	return nil
+}
+
+var defaultAppConfig *AppConfig
+
+// GetAppConfig 获取AppConfig配置信息
+func GetAppConfig() *AppConfig {
+	return defaultAppConfig
 }
