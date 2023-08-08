@@ -10,9 +10,8 @@ import (
 // AppConfig 应用配置
 type AppConfig struct {
 	App struct {
-		AuthToken       string `yaml:"auth_token"`
-		SocksURL        string `yaml:"socks_url"`
-		BlogStoragePath string `yaml:"blog_storage_path"`
+		AuthToken string `yaml:"auth_token"`
+		SocksURL  string `yaml:"socks_url"`
 	} `yaml:"app"`
 }
 
