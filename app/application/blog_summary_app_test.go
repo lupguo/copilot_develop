@@ -170,10 +170,13 @@ func (m *mockAISrv) BlogSummary(ctx context.Context, content string) (summary *e
 func TestBlogSummaryApp_ReplaceKeywordsAndSummary(t *testing.T) {
 	// 创建并打开一个临时文件
 	tempFile := filepath.Join(os.TempDir(), "01.md")
-	file, err := os.OpenFile(tempFile, os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(tempFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
 		return
 	}
+	defer os.Remove(tempFile)
+	defer file.Close()
+
 	// 模拟写入一些md内容
 	fmt.Fprint(file, `---
 title: 苹果Wiki
@@ -185,9 +188,7 @@ iPhone 是第一款使用多点触控技术的手机。 [4] 自 iPhone 推出以
 
 iPhone 是与 Android 并列的世界上最大的两个智能手机平台之一，并且在奢侈品市场中占有很大的份额。 iPhone为苹果公司带来了巨额利润，使其成为全球最有价值的上市公司之一。第一代iPhone被形容为手机行业的一场“革命”，后续机型也获得好评。 [5] iPhone 被誉为普及了智能手机和平板电脑，并为智能手机应用程序（或“应用程序经济”）创造了一个巨大的市场。截至 2017 年 1 月，Apple 的 App Store 包含超过 220 万个 iPhone 应用程序。
 `)
-	file.Close()
 
-	//
 	mockAISrv := new(mockAISrv)
 	ctx := context.Background()
 	mockAISrv.On("BlogSummary", ctx, mock.Anything).Return(&entity.BlogSummary{

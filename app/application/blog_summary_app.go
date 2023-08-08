@@ -1,7 +1,6 @@
 package application
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -19,24 +18,24 @@ type BlogSummaryApp struct {
 	srv service.IServicesSummaryAI
 }
 
-// 博客地址
-const blogStorageRoot = "/data/www/tkstorm.com/content/posts"
+// NewBlogSummaryApp 初始一个BlogSummaryApp
+func NewBlogSummaryApp(srv service.IServicesSummaryAI) *BlogSummaryApp {
+	return &BlogSummaryApp{srv: srv}
+}
 
 // UpdateBlogSummaryContent 更新Blog的汇总信息
-func (app *BlogSummaryApp) UpdateBlogSummaryContent() error {
+func (app *BlogSummaryApp) UpdateBlogSummaryContent(ctx context.Context, storageRoot string) error {
 	// 查询目录下所有的markdown目录 -> slice内 []*BlogMD
-	blogFilePaths, err := shim.FindFilePaths(blogStorageRoot, "*.md")
+	blogFilePaths, err := shim.FindFilePaths(storageRoot, "*.md")
 	if err != nil {
-		return errors.Wrapf(err, "shim find file paths root [%s] got err", blogStorageRoot)
+		return errors.Wrapf(err, "shim find file paths root [%s] got err", storageRoot)
 	}
 
 	// 通过正则提取md的主题内容
-	ctx := context.Background()
 	for _, blogFilePath := range blogFilePaths {
 		// 替换每个md的汇总信息、关键字、描述信息
 		if err := app.ReplaceKeywordsAndSummary(ctx, blogFilePath); err != nil {
-			log.Errorf("replace blog md file[%s] got err: %s", blogFilePath, err)
-			return err
+			return errors.Wrapf(err, "replace blog md file[%s] got err: %s", blogFilePath, err)
 		}
 	}
 
@@ -85,18 +84,25 @@ func (app *BlogSummaryApp) ReplaceKeywordsAndSummary(ctx context.Context, blogFi
 
 func writeNewYamlHeader(md *entity.BlogMD, headerStr []byte) error {
 	// 清理+重写如新的文件内容
-	mdFile, err := os.OpenFile(md.Filepath, os.O_TRUNC|os.O_WRONLY, 0644)
+	mdFile, err := os.OpenFile(md.Filepath, os.O_TRUNC|os.O_RDWR, 0644)
 	if err != nil {
 		return errors.Wrapf(err, "open blog file[%s] got err", md.Filepath)
 	}
 	defer mdFile.Close()
-	w := bufio.NewWriter(mdFile)
-	if _, err = fmt.Fprintf(w, "---\n%s---\n\n%s", headerStr, md.MDContent); err != nil {
+
+	// 重写如file
+	if _, err = fmt.Fprintf(mdFile, "---\n%s---\n\n%s", headerStr, md.MDContent); err != nil {
 		return errors.Wrapf(err, "write into blog file[%s] with new yaml header got err", md.Filepath)
 	}
-	log.Debugf("buffed bytes[%s]: %d", md.Filepath, w.Buffered())
-	if err := w.Flush(); err != nil {
-		return errors.Wrapf(err, "flush failed")
-	}
+
+	// 利用bufio来包裹mdFile
+	// w := bufio.NewWriter(mdFile)
+	// if _, err = fmt.Fprintf(w, "---\n%s---\n\n%s", headerStr, md.MDContent); err != nil {
+	// 	return errors.Wrapf(err, "write into blog file[%s] with new yaml header got err", md.Filepath)
+	// }
+	// log.Debugf("buffed bytes[%s]: %d", md.Filepath, w.Buffered())
+	// if err := w.Flush(); err != nil {
+	// 	return errors.Wrapf(err, "flush failed")
+	// }
 	return nil
 }

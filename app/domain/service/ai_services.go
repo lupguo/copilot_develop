@@ -17,14 +17,19 @@ type IServicesSummaryAI interface {
 	BlogSummary(ctx context.Context, content string) (summary *entity.BlogSummary, err error)
 }
 
-// SummaryAIService AI汇总服务
-type SummaryAIService struct {
+// AIService AI汇总服务
+type AIService struct {
 	Infra        repos.IReposOpenAI
 	appPromptMap config.AppPromptMap
 }
 
+// NewAIService 底层的SummaryAI服务
+func NewAIService(infra repos.IReposOpenAI, appPromptMap config.AppPromptMap) *AIService {
+	return &AIService{Infra: infra, appPromptMap: appPromptMap}
+}
+
 // BlogSummary 内容摘要+关键字总结
-func (srv *SummaryAIService) BlogSummary(ctx context.Context, content string) (summary *entity.BlogSummary, err error) {
+func (srv *AIService) BlogSummary(ctx context.Context, content string) (summary *entity.BlogSummary, err error) {
 	promptKey := config.PromptKeySummaryBlog
 	prompt, ok := srv.appPromptMap[promptKey]
 	if !ok {

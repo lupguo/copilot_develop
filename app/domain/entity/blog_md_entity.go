@@ -30,7 +30,7 @@ type YamlHeader struct {
 	Summary     string   `json:"summary,omitempty" json:"summary,omitempty"`
 }
 
-var blogMdRegex = regexp.MustCompile("(?sm)^---\n(.+)\n---\n(.*)$")
+var blogMdRegex = regexp.MustCompile("(?sm)^---\n(.*)\n---\n(.*)$")
 
 // NewBlogMD 通过文件filename 初始化一个Blog MD内容
 func NewBlogMD(path string) (*BlogMD, error) {
