@@ -8,6 +8,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	PromptKeySummaryBlog = "summary-blog"
+)
+
 // AppPromptConfig 提示词配置
 type AppPromptConfig struct {
 	AppPrompts []Prompt `yaml:"app_prompt"`

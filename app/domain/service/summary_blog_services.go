@@ -25,7 +25,7 @@ type SummaryAIService struct {
 
 // BlogSummary 内容摘要+关键字总结
 func (srv *SummaryAIService) BlogSummary(ctx context.Context, content string) (summary *entity.BlogSummary, err error) {
-	promptKey := "summary-blog"
+	promptKey := config.PromptKeySummaryBlog
 	prompt, ok := srv.appPromptMap[promptKey]
 	if !ok {
 		return nil, errors.Errorf("prompt config key[%s] not exist", promptKey)

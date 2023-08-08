@@ -30,3 +30,20 @@ func ParseAppConfig(filename string) (*AppConfig, error) {
 
 	return &cfg, nil
 }
+
+// InitAppConfig 初始AppConfig配置信息
+func InitAppConfig(filename string) error {
+	cfg, err := ParseAppConfig(filename)
+	if err != nil {
+		return err
+	}
+	defaultAppConfig = cfg
+	return nil
+}
+
+var defaultAppConfig *AppConfig
+
+// GetAppConfig 获取AppConfig配置信息
+func GetAppConfig() *AppConfig {
+	return defaultAppConfig
+}
