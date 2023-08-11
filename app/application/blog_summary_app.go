@@ -10,6 +10,7 @@ import (
 	"github.com/lupguo/copilot_develop/app/domain/entity"
 	"github.com/lupguo/copilot_develop/app/domain/service"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 )
 
@@ -31,22 +32,34 @@ func (app *BlogSummaryApp) UpdateBlogSummaryContent(ctx context.Context, storage
 		return errors.Wrapf(err, "shim find file paths root [%s] got err", storageRoot)
 	}
 
-	// 通过正则提取md的主题内容
+	// 通过正则提取md的主题内容 - 改并发版本
+	egp := errgroup.Group{}
+	egp.SetLimit(20)
 	for _, blogFilePath := range blogFilePaths {
-		// 替换每个md的汇总信息、关键字、描述信息
-		if err := app.ReplaceKeywordsAndSummary(ctx, blogFilePath); err != nil {
-			return errors.Wrapf(err, "replace blog md file[%s] got err: %s", blogFilePath, err)
-		}
+		mdPath := blogFilePath
+		egp.Go(func() error {
+			// 替换每个md的汇总信息、关键字、描述信息
+			if err := app.ReplaceKeywordsAndSummary(ctx, mdPath); err != nil {
+				return errors.Wrapf(err, "replace blog md file[%s] got err: %s", mdPath, err)
+			}
+			return nil
+		})
+	}
+
+	if err := egp.Wait(); err != nil {
+		log.Errorf("egp got err: %s", err)
+		return err
 	}
 
 	return nil
 }
 
 // ReplaceKeywordsAndSummary 将keywords, summary 填充到原有的blog文章内
-func (app *BlogSummaryApp) ReplaceKeywordsAndSummary(ctx context.Context, blogFilePath string) error {
+func (app *BlogSummaryApp) ReplaceKeywordsAndSummary(ctx context.Context, mdPath string) error {
 	// 初始每个md
-	md, err := entity.NewBlogMD(blogFilePath)
+	md, err := entity.NewBlogMD(mdPath)
 	if err != nil {
+		log.Errorf("entity new blog md [%s] got err: %s", mdPath, err)
 		return errors.Wrap(err, "entity new blog md got err in replace")
 	}
 
@@ -70,7 +83,7 @@ func (app *BlogSummaryApp) ReplaceKeywordsAndSummary(ctx context.Context, blogFi
 	md.MDHeader.Description = summary.Description
 	headerStr, err := yaml.Marshal(md.MDHeader)
 	if err != nil {
-		return errors.Wrapf(err, "marsh file[%s] yaml head got err", blogFilePath)
+		return errors.Wrapf(err, "marsh file[%s] yaml head got err", mdPath)
 	}
 	log.Debugf("newMDHeaderStr: %s", headerStr)
 

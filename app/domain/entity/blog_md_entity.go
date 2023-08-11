@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"time"
 
 	"github.com/hold7techs/go-shim/log"
 	"github.com/pkg/errors"
@@ -13,21 +14,22 @@ import (
 // BlogMD Blog文档内容
 type BlogMD struct {
 	Filepath  string      `json:"filename,omitempty"`
-	MDHeader  *YamlHeader `json:"yaml_header"`
+	MDHeader  *YamlHeader `json:"yaml_header,omitempty"`
 	MDContent string      `json:"md_content,omitempty"`
 }
 
 // YamlHeader YamlHeader内容
 type YamlHeader struct {
-	Title       string   `json:"title,omitempty"`
-	Date        string   `json:"date,omitempty"`
-	Weight      int      `json:"weight,omitempty"`
-	Type        string   `json:"type,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	Categories  []string `json:"categories,omitempty"`
-	Keywords    string   `json:"keywords"`
-	Description string   `json:"description,omitempty"`
-	Summary     string   `json:"summary,omitempty" json:"summary,omitempty"`
+	Title             string    `yaml:"title,omitempty"`
+	Date              string    `yaml:"date,omitempty"`
+	Weight            int       `yaml:"weight,omitempty"`
+	Type              string    `yaml:"type,omitempty"`
+	Tags              []string  `yaml:"tags,omitempty"`
+	Categories        []string  `yaml:"categories,omitempty"`
+	Keywords          string    `yaml:"keywords,omitempty"`
+	Description       string    `yaml:"description,omitempty"`
+	Summary           string    `yaml:"summary,omitempty"`
+	SummaryUpdateTime time.Time `yaml:"summary_update_time,omitempty"`
 }
 
 var blogMdRegex = regexp.MustCompile("(?sm)^---\n(.*)\n---\n(.*)$")
