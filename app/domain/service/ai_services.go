@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"regexp"
 
 	"github.com/lupguo/copilot_develop/app/domain/entity"
 	"github.com/lupguo/copilot_develop/app/domain/repos"
@@ -39,7 +40,7 @@ func (srv *AIService) BlogSummary(ctx context.Context, content string) (summary 
 	// 请求头
 	userMsg := []openai.ChatCompletionMessage{{
 		Role:    openai.ChatMessageRoleUser,
-		Content: content,
+		Content: minimiseContent(content),
 	}}
 	req := &openai.ChatCompletionRequest{
 		Model:     prompt.AIMode,
@@ -60,4 +61,13 @@ func (srv *AIService) BlogSummary(ctx context.Context, content string) (summary 
 
 	// 取值
 	return summary, nil
+}
+
+// MDCodeRegex markdown中的代码正则
+var MDCodeRegex = regexp.MustCompile("(?ms)```.*```")
+
+// 精简content内容，降低token使用量
+// 1. 剔除```符号```内的内容
+func minimiseContent(content string) string {
+	return MDCodeRegex.ReplaceAllString(content, "")
 }

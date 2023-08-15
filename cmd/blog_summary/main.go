@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"path/filepath"
+	"time"
 
 	"github.com/hold7techs/go-shim/log"
 	"github.com/lupguo/copilot_develop/app/application"
@@ -21,6 +22,7 @@ func main() {
 		appPromptConfigFile = filepath.Join(config.GetConfigPath(), "prompt.yaml")
 	)
 
+	start := time.Now()
 	app, err := initializeBlogSummaryApp(appYamlConfigFile, appPromptConfigFile)
 	if err != nil {
 		log.Fatalf("init blog summary got err: %s", err)
@@ -30,6 +32,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("update blog summary content got err: %s", err)
 	}
+
+	log.Debugf("update blog summary using time: %s", time.Since(start))
 }
 
 func initializeBlogSummaryApp(appYamlConfigFile, appPromptConfigFile string) (*application.BlogSummaryApp, error) {
