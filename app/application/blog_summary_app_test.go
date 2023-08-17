@@ -125,8 +125,8 @@ func Test_truncateFileAndWriteNewContent(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := writeNewYamlHeader(tt.args.md, tt.args.newYamHeader); (err != nil) != tt.wantErr {
-				t.Errorf("writeNewYamlHeader() error = %v, wantErr %v", err, tt.wantErr)
+			if err := writeWithNewYamlHeader(tt.args.md, tt.args.newYamHeader); (err != nil) != tt.wantErr {
+				t.Errorf("writeWithNewYamlHeader() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -167,6 +167,31 @@ func (m *mockAISrv) BlogSummary(ctx context.Context, content string) (summary *e
 	return args[0].(*entity.BlogSummary), args.Error(1)
 }
 
+// mock 出一个sqliteInfra
+type mockInfra struct {
+	mock.Mock
+}
+
+func (m *mockInfra) InitBlogSummaryDB(ctx context.Context) error {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockInfra) SelSummaryRecord(ctx context.Context, path string) (*entity.BlogSummaryUpdatedRecord, error) {
+	args := m.Called(ctx, path)
+	return args[0].(*entity.BlogSummaryUpdatedRecord), args.Error(1)
+}
+
+func (m *mockInfra) CleanAllBlogSummaryDB(ctx context.Context) error {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockInfra) AddMDSummaryRecord(ctx context.Context, md *entity.BlogMD) error {
+	args := m.Called(ctx, md)
+	return args.Error(0)
+}
+
 func TestBlogSummaryApp_ReplaceKeywordsAndSummary(t *testing.T) {
 	// 创建并打开一个临时文件
 	tempFile := filepath.Join(os.TempDir(), "01.md")
@@ -189,6 +214,7 @@ iPhone 是第一款使用多点触控技术的手机。 [4] 自 iPhone 推出以
 iPhone 是与 Android 并列的世界上最大的两个智能手机平台之一，并且在奢侈品市场中占有很大的份额。 iPhone为苹果公司带来了巨额利润，使其成为全球最有价值的上市公司之一。第一代iPhone被形容为手机行业的一场“革命”，后续机型也获得好评。 [5] iPhone 被誉为普及了智能手机和平板电脑，并为智能手机应用程序（或“应用程序经济”）创造了一个巨大的市场。截至 2017 年 1 月，Apple 的 App Store 包含超过 220 万个 iPhone 应用程序。
 `)
 
+	// mockAISrv服务
 	mockAISrv := new(mockAISrv)
 	ctx := context.Background()
 	mockAISrv.On("BlogSummary", ctx, mock.Anything).Return(&entity.BlogSummary{
@@ -196,6 +222,24 @@ iPhone 是与 Android 并列的世界上最大的两个智能手机平台之一�
 		Summary:     "Mock summary...",
 		Description: "Mock Description...",
 	}, nil)
+
+	// mock sqliteInfra服务
+	mockSqliteInfra := new(mockInfra)
+	mockSqliteInfra.On("SelSummaryRecord", ctx, mock.Anything).Return(
+		&entity.BlogSummaryUpdatedRecord{
+			Path:        "mock_path",
+			Title:       "mock_title",
+			Keywords:    "",
+			Summary:     "",
+			Description: "",
+			Headers:     "",
+		},
+		// errors.New("mock db record not exist err"),
+		nil,
+	)
+	mockSqliteInfra.On("AddMDSummaryRecord", ctx, mock.Anything, mock.Anything).Return(
+		nil,
+	)
 
 	type args struct {
 		ctx          context.Context
@@ -213,9 +257,7 @@ iPhone 是与 Android 并列的世界上最大的两个智能手机平台之一�
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			app := &BlogSummaryApp{
-				srv: mockAISrv,
-			}
+			app := NewBlogSummaryApp(mockAISrv, mockSqliteInfra)
 			if err := app.ReplaceKeywordsAndSummary(tt.args.ctx, tt.args.blogFilePath); (err != nil) != tt.wantErr {
 				t.Errorf("ReplaceKeywordsAndSummary() error = %v, wantErr %v", err, tt.wantErr)
 			}

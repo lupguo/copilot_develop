@@ -8,6 +8,7 @@ import (
 	"github.com/hold7techs/go-shim/log"
 	"github.com/hold7techs/go-shim/shim"
 	"github.com/lupguo/copilot_develop/app/domain/entity"
+	"github.com/lupguo/copilot_develop/app/domain/repos"
 	"github.com/lupguo/copilot_develop/app/domain/service"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -16,12 +17,13 @@ import (
 
 // BlogSummaryApp Blog的汇总App
 type BlogSummaryApp struct {
-	srv service.IServicesSummaryAI
+	srv         service.IServicesSummaryAI
+	sqliteInfra repos.IReposSQLiteBlogSummary
 }
 
 // NewBlogSummaryApp 初始一个BlogSummaryApp
-func NewBlogSummaryApp(srv service.IServicesSummaryAI) *BlogSummaryApp {
-	return &BlogSummaryApp{srv: srv}
+func NewBlogSummaryApp(srv service.IServicesSummaryAI, sqliteInfra repos.IReposSQLiteBlogSummary) *BlogSummaryApp {
+	return &BlogSummaryApp{srv: srv, sqliteInfra: sqliteInfra}
 }
 
 // UpdateBlogSummaryContent 更新Blog的汇总信息
@@ -56,6 +58,15 @@ func (app *BlogSummaryApp) UpdateBlogSummaryContent(ctx context.Context, storage
 
 // ReplaceKeywordsAndSummary 将keywords, summary 填充到原有的blog文章内
 func (app *BlogSummaryApp) ReplaceKeywordsAndSummary(ctx context.Context, mdPath string) error {
+	// DB查看是否存在mdPath已Replace过了
+	record, err := app.sqliteInfra.SelSummaryRecord(ctx, mdPath)
+	if err != nil {
+		return errors.Wrap(err, "db select summary records got err")
+	} else if record != nil {
+		log.Debugf("md path[%s] already replaced", mdPath)
+		return nil
+	}
+
 	// 初始每个md
 	md, err := entity.NewBlogMD(mdPath)
 	if err != nil {
@@ -88,14 +99,19 @@ func (app *BlogSummaryApp) ReplaceKeywordsAndSummary(ctx context.Context, mdPath
 	log.Debugf("newMDHeaderStr: %s", headerStr)
 
 	// 清空并写入新的文件内容
-	if err := writeNewYamlHeader(md, headerStr); err != nil {
+	if err := writeWithNewYamlHeader(md, headerStr); err != nil {
 		return errors.Wrapf(err, "replace write into blog file[%s] got err", md.Filepath)
+	}
+
+	// md.Filepath, md.MDHeader.Title, md.MDHeader
+	if err := app.sqliteInfra.AddMDSummaryRecord(ctx, md); err != nil {
+		log.Errorf("insert md file[%s] summary record got err: %s", md.Filepath, err)
 	}
 
 	return nil
 }
 
-func writeNewYamlHeader(md *entity.BlogMD, headerStr []byte) error {
+func writeWithNewYamlHeader(md *entity.BlogMD, headerStr []byte) error {
 	// 清理+重写如新的文件内容
 	mdFile, err := os.OpenFile(md.Filepath, os.O_TRUNC|os.O_RDWR, 0644)
 	if err != nil {
@@ -107,15 +123,5 @@ func writeNewYamlHeader(md *entity.BlogMD, headerStr []byte) error {
 	if _, err = fmt.Fprintf(mdFile, "---\n%s---\n\n%s", headerStr, md.MDContent); err != nil {
 		return errors.Wrapf(err, "write into blog file[%s] with new yaml header got err", md.Filepath)
 	}
-
-	// 利用bufio来包裹mdFile
-	// w := bufio.NewWriter(mdFile)
-	// if _, err = fmt.Fprintf(w, "---\n%s---\n\n%s", headerStr, md.MDContent); err != nil {
-	// 	return errors.Wrapf(err, "write into blog file[%s] with new yaml header got err", md.Filepath)
-	// }
-	// log.Debugf("buffed bytes[%s]: %d", md.Filepath, w.Buffered())
-	// if err := w.Flush(); err != nil {
-	// 	return errors.Wrapf(err, "flush failed")
-	// }
 	return nil
 }

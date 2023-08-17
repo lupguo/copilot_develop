@@ -33,3 +33,18 @@ func TestExpand(t *testing.T) {
 	}
 	fmt.Println(string(result))
 }
+
+func Test_YamlHeaderGet(t *testing.T) {
+	str := "---header---content1---content2"
+
+	// (.*?)：使用非贪婪模式匹配任意字符，直到遇到下一个换行符。
+	re := regexp.MustCompile(`---(.*?)---(.*)`)
+	matches := re.FindStringSubmatch(str)
+
+	if len(matches) >= 2 {
+		header := matches[1]
+		content := matches[2]
+		t.Log("Header:", header)
+		t.Log("Content:", content)
+	}
+}

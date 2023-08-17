@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -32,7 +33,16 @@ type YamlHeader struct {
 	SummaryUpdateTime time.Time `yaml:"summary_update_time,omitempty"`
 }
 
-var blogMdRegex = regexp.MustCompile("(?sm)^---\n(.*)\n---\n(.*)$")
+func (y *YamlHeader) String() string {
+	marshal, err := json.Marshal(y)
+	if err != nil {
+		return err.Error()
+	}
+
+	return string(marshal)
+}
+
+var blogMdRegex = regexp.MustCompile("(?sm)^---\n(.*?)\n---(?:\n+)(.*)$")
 
 // NewBlogMD 通过文件filename 初始化一个Blog MD内容
 func NewBlogMD(path string) (*BlogMD, error) {
@@ -53,7 +63,7 @@ func NewBlogMD(path string) (*BlogMD, error) {
 	yamlHeader := &YamlHeader{}
 	err = yaml.Unmarshal([]byte(match[1]), yamlHeader)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "yaml unmarshal got err")
 	}
 
 	// 返回初始的BlogMD实例

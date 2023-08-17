@@ -68,3 +68,8 @@ func GetAppRoot() string {
 func GetConfigPath() string {
 	return filepath.Join(GetAppRoot(), "conf")
 }
+
+// GetDataPath 获取数据存储路径
+func GetDataPath() string {
+	return filepath.Join(GetAppRoot(), "data")
+}
