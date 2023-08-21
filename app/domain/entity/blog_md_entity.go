@@ -1,9 +1,11 @@
 package entity
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
+	"time"
 
 	"github.com/hold7techs/go-shim/log"
 	"github.com/pkg/errors"
@@ -13,24 +15,34 @@ import (
 // BlogMD Blog文档内容
 type BlogMD struct {
 	Filepath  string      `json:"filename,omitempty"`
-	MDHeader  *YamlHeader `json:"yaml_header"`
+	MDHeader  *YamlHeader `json:"yaml_header,omitempty"`
 	MDContent string      `json:"md_content,omitempty"`
 }
 
 // YamlHeader YamlHeader内容
 type YamlHeader struct {
-	Title       string   `json:"title,omitempty"`
-	Date        string   `json:"date,omitempty"`
-	Weight      int      `json:"weight,omitempty"`
-	Type        string   `json:"type,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	Categories  []string `json:"categories,omitempty"`
-	Keywords    string   `json:"keywords"`
-	Description string   `json:"description,omitempty"`
-	Summary     string   `json:"summary,omitempty" json:"summary,omitempty"`
+	Title             string    `yaml:"title,omitempty"`
+	Date              string    `yaml:"date,omitempty"`
+	Weight            int       `yaml:"weight,omitempty"`
+	Type              string    `yaml:"type,omitempty"`
+	Tags              []string  `yaml:"tags,omitempty"`
+	Categories        []string  `yaml:"categories,omitempty"`
+	Keywords          string    `yaml:"keywords,omitempty"`
+	Description       string    `yaml:"description,omitempty"`
+	Summary           string    `yaml:"summary,omitempty"`
+	SummaryUpdateTime time.Time `yaml:"summary_update_time,omitempty"`
 }
 
-var blogMdRegex = regexp.MustCompile("(?sm)^---\n(.+)\n---\n(.*)$")
+func (y *YamlHeader) String() string {
+	marshal, err := json.Marshal(y)
+	if err != nil {
+		return err.Error()
+	}
+
+	return string(marshal)
+}
+
+var blogMdRegex = regexp.MustCompile("(?sm)^---\n(.*?)\n---(?:\n+)(.*)$")
 
 // NewBlogMD 通过文件filename 初始化一个Blog MD内容
 func NewBlogMD(path string) (*BlogMD, error) {
@@ -51,7 +63,7 @@ func NewBlogMD(path string) (*BlogMD, error) {
 	yamlHeader := &YamlHeader{}
 	err = yaml.Unmarshal([]byte(match[1]), yamlHeader)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "yaml unmarshal got err")
 	}
 
 	// 返回初始的BlogMD实例

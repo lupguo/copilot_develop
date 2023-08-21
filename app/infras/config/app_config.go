@@ -2,6 +2,8 @@ package config
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -46,4 +48,28 @@ var defaultAppConfig *AppConfig
 // GetAppConfig 获取AppConfig配置信息
 func GetAppConfig() *AppConfig {
 	return defaultAppConfig
+}
+
+// GetAppRoot 获取项目根目录
+func GetAppRoot() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	index := strings.Index(dir, "app")
+
+	if index > 0 {
+		return dir[:index]
+	}
+	return dir
+}
+
+// GetConfigPath 获取配置文件路径
+func GetConfigPath() string {
+	return filepath.Join(GetAppRoot(), "conf")
+}
+
+// GetDataPath 获取数据存储路径
+func GetDataPath() string {
+	return filepath.Join(GetAppRoot(), "data")
 }

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"regexp"
 
 	"github.com/lupguo/copilot_develop/app/domain/entity"
 	"github.com/lupguo/copilot_develop/app/domain/repos"
@@ -17,14 +18,19 @@ type IServicesSummaryAI interface {
 	BlogSummary(ctx context.Context, content string) (summary *entity.BlogSummary, err error)
 }
 
-// SummaryAIService AI汇总服务
-type SummaryAIService struct {
+// AIService AI汇总服务
+type AIService struct {
 	Infra        repos.IReposOpenAI
 	appPromptMap config.AppPromptMap
 }
 
+// NewAIService 底层的SummaryAI服务
+func NewAIService(infra repos.IReposOpenAI, appPromptMap config.AppPromptMap) *AIService {
+	return &AIService{Infra: infra, appPromptMap: appPromptMap}
+}
+
 // BlogSummary 内容摘要+关键字总结
-func (srv *SummaryAIService) BlogSummary(ctx context.Context, content string) (summary *entity.BlogSummary, err error) {
+func (srv *AIService) BlogSummary(ctx context.Context, content string) (summary *entity.BlogSummary, err error) {
 	promptKey := config.PromptKeySummaryBlog
 	prompt, ok := srv.appPromptMap[promptKey]
 	if !ok {
@@ -34,7 +40,7 @@ func (srv *SummaryAIService) BlogSummary(ctx context.Context, content string) (s
 	// 请求头
 	userMsg := []openai.ChatCompletionMessage{{
 		Role:    openai.ChatMessageRoleUser,
-		Content: content,
+		Content: minimiseContent(content),
 	}}
 	req := &openai.ChatCompletionRequest{
 		Model:     prompt.AIMode,
@@ -55,4 +61,13 @@ func (srv *SummaryAIService) BlogSummary(ctx context.Context, content string) (s
 
 	// 取值
 	return summary, nil
+}
+
+// MDCodeRegex markdown中的代码正则
+var MDCodeRegex = regexp.MustCompile("(?ms)```.*```")
+
+// 精简content内容，降低token使用量
+// 1. 剔除```符号```内的内容
+func minimiseContent(content string) string {
+	return MDCodeRegex.ReplaceAllString(content, "")
 }
