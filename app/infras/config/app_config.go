@@ -56,7 +56,7 @@ func GetAppRoot() string {
 	if err != nil {
 		return ""
 	}
-	index := strings.Index(dir, "app")
+	index := strings.Index(dir, "app/application")
 
 	if index > 0 {
 		return dir[:index]

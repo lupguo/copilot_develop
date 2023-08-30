@@ -2,8 +2,6 @@ package application
 
 import (
 	"context"
-	"fmt"
-	"os"
 
 	"github.com/hold7techs/go-shim/log"
 	"github.com/hold7techs/go-shim/shim"
@@ -12,7 +10,6 @@ import (
 	"github.com/lupguo/copilot_develop/app/domain/service"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
-	"gopkg.in/yaml.v3"
 )
 
 // BlogSummaryApp Blog的汇总App
@@ -36,14 +33,20 @@ func (app *BlogSummaryApp) UpdateBlogSummaryContent(ctx context.Context, storage
 
 	// 通过正则提取md的主题内容 - 改并发版本
 	egp := errgroup.Group{}
-	egp.SetLimit(20)
+	egp.SetLimit(10)
 	for _, blogFilePath := range blogFilePaths {
 		mdPath := blogFilePath
 		egp.Go(func() error {
 			// 替换每个md的汇总信息、关键字、描述信息
-			if err := app.ReplaceKeywordsAndSummary(ctx, mdPath); err != nil {
-				return errors.Wrapf(err, "replace blog md file[%s] got err: %s", mdPath, err)
+			if err := app.replaceMdSummary(ctx, mdPath); err != nil {
+				return errors.Wrapf(err, "replace blog md file[%s] got err(1): %s", mdPath, err)
 			}
+
+			// 替换每个md的weight(文本字数+时间排序)、draft设置
+			if err := app.updateMdWeightAndDraft(ctx, mdPath); err != nil {
+				return errors.Wrapf(err, "replace blog md file[%s] got err(2): %s", mdPath, err)
+			}
+
 			return nil
 		})
 	}
@@ -56,14 +59,42 @@ func (app *BlogSummaryApp) UpdateBlogSummaryContent(ctx context.Context, storage
 	return nil
 }
 
-// ReplaceKeywordsAndSummary 将keywords, summary 填充到原有的blog文章内
-func (app *BlogSummaryApp) ReplaceKeywordsAndSummary(ctx context.Context, mdPath string) error {
-	// DB查看是否存在mdPath已Replace过了
-	record, err := app.sqliteInfra.SelSummaryRecord(ctx, mdPath)
+// updateMdWeightAndDraft 更新文章权重和Draft信息
+// 1. 文章长度过短的，更新处理
+func (app *BlogSummaryApp) updateMdWeightAndDraft(ctx context.Context, mdPath string) error {
+	// 初始每个md
+	md, err := entity.NewBlogMD(mdPath)
 	if err != nil {
-		return errors.Wrap(err, "db select summary records got err")
+		log.Errorf("entity new blog md [%s] got err: %s", mdPath, err)
+		return errors.Wrap(err, "entity new blog md got err in replace")
+	}
+
+	// 长度小于10，更新DB记录的Draft为true
+	md.MDHeader.Draft = md.IsDraft()
+	md.MDHeader.Weight = md.CalcArticleWeight()
+	log.Debugf("replace md path[%s] with new weight(%v), draft(%v)", mdPath, md.MDHeader.Weight, md.MDHeader.Draft)
+
+	// db信息更新
+	if err := app.sqliteInfra.UpdateBlogMDRecord(ctx, md); err != nil {
+		return errors.Wrap(err, "update blog weight and draft got err")
+	}
+
+	// 用新的yaml header替换
+	if err := md.ReplaceWithNewYamlHeader(); err != nil {
+		return errors.Wrapf(err, "replace write into blog file[%s] got err", md.Filepath)
+	}
+
+	return nil
+}
+
+// replaceMdSummary 将keywords, summary 填充到原有的blog文章内
+func (app *BlogSummaryApp) replaceMdSummary(ctx context.Context, mdPath string) error {
+	// DB查看是否存在mdPath已Replace过了
+	record, err := app.sqliteInfra.SelBlogMDRecord(ctx, mdPath)
+	if err != nil {
+		return err
 	} else if record != nil {
-		log.Debugf("md path[%s] already replaced", mdPath)
+		log.Warnf("md path[%s] already replaced", mdPath)
 		return nil
 	}
 
@@ -74,54 +105,30 @@ func (app *BlogSummaryApp) ReplaceKeywordsAndSummary(ctx context.Context, mdPath
 		return errors.Wrap(err, "entity new blog md got err in replace")
 	}
 
+	// 检测md是否符合replace规则
+	if md.IsOverMaxTokenSize() {
+		log.Warnf("md content[%s] over max token size", mdPath)
+		return nil
+	}
+
 	// content 提前摘要
 	summary, err := app.srv.BlogSummary(ctx, md.MDContent)
 	if err != nil {
-		return errors.Wrap(err, "using open ai extract summary for blogContent got err")
-	} else if summary == nil {
-		return errors.New("app srv blog summary got nil val")
-	}
-
-	// 检测summary结果
-	if summary.Summary == "" || summary.Keywords == "" || summary.Description == "" {
-		return errors.Wrapf(err, "blog summary empty values, summary: %s\n keywords: %s\n, description: %s\n",
-			summary.Summary, summary.Keywords, summary.Description)
+		return errors.Wrap(err, "srv blog summary got err")
 	}
 
 	// 汇总、关键字、描述，将调整后的md更新回去
 	md.MDHeader.Summary = summary.Summary
 	md.MDHeader.Keywords = summary.Keywords
 	md.MDHeader.Description = summary.Description
-	headerStr, err := yaml.Marshal(md.MDHeader)
-	if err != nil {
-		return errors.Wrapf(err, "marsh file[%s] yaml head got err", mdPath)
-	}
-	log.Debugf("newMDHeaderStr: %s", headerStr)
-
-	// 清空并写入新的文件内容
-	if err := writeWithNewYamlHeader(md, headerStr); err != nil {
+	if err := md.ReplaceWithNewYamlHeader(); err != nil {
 		return errors.Wrapf(err, "replace write into blog file[%s] got err", md.Filepath)
 	}
 
-	// md.Filepath, md.MDHeader.Title, md.MDHeader
-	if err := app.sqliteInfra.AddMDSummaryRecord(ctx, md); err != nil {
+	// 添加MD Record记录
+	if err := app.sqliteInfra.AddBlogMDRecord(ctx, md); err != nil {
 		log.Errorf("insert md file[%s] summary record got err: %s", md.Filepath, err)
 	}
 
-	return nil
-}
-
-func writeWithNewYamlHeader(md *entity.BlogMD, headerStr []byte) error {
-	// 清理+重写如新的文件内容
-	mdFile, err := os.OpenFile(md.Filepath, os.O_TRUNC|os.O_RDWR, 0644)
-	if err != nil {
-		return errors.Wrapf(err, "open blog file[%s] got err", md.Filepath)
-	}
-	defer mdFile.Close()
-
-	// 重写如file
-	if _, err = fmt.Fprintf(mdFile, "---\n%s---\n\n%s", headerStr, md.MDContent); err != nil {
-		return errors.Wrapf(err, "write into blog file[%s] with new yaml header got err", md.Filepath)
-	}
 	return nil
 }

@@ -14,6 +14,8 @@ import (
 
 const (
 	UrlOpenAISummary = "/v3/"
+
+	OpenAIMaxTokenSize = 16000
 )
 
 // OpenAIHttpProxyClient OpenAI Http代理客户端

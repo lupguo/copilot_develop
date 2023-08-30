@@ -20,7 +20,8 @@ type AppPromptConfig struct {
 // Prompt 提示词
 type Prompt struct {
 	Name              string                         `yaml:"name"`
-	AIMode            string                         `yaml:"mode"`
+	AIMode            string                         `yaml:"ai_mode"`
+	MaxTokens         int                            `yaml:"max_tokens"`
 	PredefinedPrompts []openai.ChatCompletionMessage `yaml:"predefined_prompts"`
 }
 

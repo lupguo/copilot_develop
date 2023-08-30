@@ -11,12 +11,15 @@ type IReposSQLiteBlogSummary interface {
 	// InitBlogSummaryDB 初始化blog_summary.db sqlite数据库
 	InitBlogSummaryDB(ctx context.Context) error
 
-	// SelSummaryRecord 查询是否有Path处理的记录
-	SelSummaryRecord(ctx context.Context, path string) (*entity.BlogSummaryUpdatedRecord, error)
+	// SelBlogMDRecord 查询是否有Path处理的记录
+	SelBlogMDRecord(ctx context.Context, path string) (*entity.BlogArticle, error)
 
 	// CleanAllBlogSummaryDB 清理整个数据库记录
 	CleanAllBlogSummaryDB(ctx context.Context) error
 
-	// AddMDSummaryRecord 新增一条已处理的MD记录
-	AddMDSummaryRecord(ctx context.Context, md *entity.BlogMD) error
+	// AddBlogMDRecord 新增一条已处理的MD记录
+	AddBlogMDRecord(ctx context.Context, md *entity.BlogMD) error
+
+	// UpdateBlogMDRecord 更新BlogMD信息
+	UpdateBlogMDRecord(ctx context.Context, md *entity.BlogMD) error
 }

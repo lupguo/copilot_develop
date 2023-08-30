@@ -1,21 +1,24 @@
 app_prompt:
   - name: "summary-content"
-    mode: "gpt-3.5-turbo-16k"
+    ai_mode: "gpt-3.5-turbo-16k"
     predefined_prompts:
       - role: "system"
         content: "你是一个Blog文章摘要汇总工具，用200字左右提炼出文章的中心思想，要求言简意赅"
   - name: "keywords-pickup"
-    mode: "gpt-3.5-turbo"
+    ai_mode: "gpt-3.5-turbo"
+    max_tokens: 4000
     predefined_prompts:
       - role: "system"
         content: "你是一个内容关键字提取工具，请提取最能概括内容核心概念的5个关键词，用英文逗号连接返回"
       - role: "assistant"
         content: "关键词1,关键词2,关键词3,关键词4,关键词5"
   - name: "summary-blog"
-    mode: "gpt-3.5-turbo-16k"
+    ai_mode: "gpt-3.5-turbo-16k"
+    max_tokens: 16000
     predefined_prompts:
       - role: "system"
         content: "你是一个Blog文章摘要工具，会依次提取内容关键词、内容摘要、简要描述，要求返回按标准json格式返回，
         json示例参考: `{\"summary\":\"文章简要概述了xx内容(大约是150字描述内容)\", \"description\":\"简要概述文章核心内容(大约是50~100字)\",\"keywords\":\"关键词1,关键词2,关键词3,关键词4,关键词5(5个左右关键词)\"}`。summary会用200字左右提炼出文章的中心思想，要求言简意赅，关键字要求5个关键词。"
+
 #      - role: "assistant"
 #        content: "{description:文章简要概述了xx内容(这里大约是200字描述内容)关键词1,关键词2,关键词3,关键词4,关键词5"
