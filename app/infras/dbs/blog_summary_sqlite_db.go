@@ -59,11 +59,11 @@ func (b *BlogSummarySqliteInfra) AddBlogMDRecord(ctx context.Context, md *entity
 	err := b.db.Create(&entity.BlogArticle{
 		CreatedAt:   time.Now().Format(shim.StdDateTimeLayout),
 		Path:        md.Filepath,
+		ShortMark:   header.ShortMark,
 		Title:       header.Title,
 		Keywords:    header.Keywords,
 		Summary:     header.Summary,
 		Description: header.Description,
-		Headers:     header.String(),
 	}).Error
 	if err != nil {
 		return errors.Wrap(err, "db sql[AddBlogMDRecord] got err")
@@ -74,9 +74,15 @@ func (b *BlogSummarySqliteInfra) AddBlogMDRecord(ctx context.Context, md *entity
 
 // UpdateBlogMDRecord  更新Blog Md记录
 func (b *BlogSummarySqliteInfra) UpdateBlogMDRecord(ctx context.Context, md *entity.BlogMD) error {
+	header := md.MDHeader
 	err := b.db.Where("path=?", md.Filepath).Updates(&entity.BlogArticle{
-		Draft:  md.MDHeader.Draft,
-		Weight: md.MDHeader.Weight,
+		ShortMark:  header.ShortMark,
+		Categories: shim.ToJsonString(header.Categories, false),
+		Tags:       shim.ToJsonString(header.Tags, false),
+		Draft:      header.Draft,
+		Weight:     header.Weight,
+		WordCount:  header.WordCounts,
+		Aliases:    shim.ToJsonString(header.Aliases, false),
 	}).Error
 
 	if err != nil {

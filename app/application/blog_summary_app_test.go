@@ -162,8 +162,8 @@ type mockAISrv struct {
 	mock.Mock
 }
 
-func (m *mockAISrv) BlogSummary(ctx context.Context, content string) (summary *entity.ArticleSummary, err error) {
-	args := m.Called(ctx, content)
+func (m *mockAISrv) BlogSummary(ctx context.Context, md *entity.BlogMD) (summary *entity.ArticleSummary, err error) {
+	args := m.Called(ctx, md)
 	return args[0].(*entity.ArticleSummary), args.Error(1)
 }
 

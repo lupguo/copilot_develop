@@ -2,6 +2,8 @@ package application
 
 import (
 	"context"
+	"path/filepath"
+	"strings"
 
 	"github.com/hold7techs/go-shim/log"
 	"github.com/hold7techs/go-shim/shim"
@@ -31,6 +33,11 @@ func (app *BlogSummaryApp) UpdateBlogSummaryContent(ctx context.Context, storage
 		return errors.Wrapf(err, "shim find file paths root [%s] got err", storageRoot)
 	}
 
+	// 基于条件过滤掉"path为_index.md"的
+	blogFilePaths = shim.ProcessStringsSlice(blogFilePaths, func(path string) bool {
+		return filepath.Base(path) == "_index.md"
+	}, nil)
+
 	// 通过正则提取md的主题内容 - 改并发版本
 	egp := errgroup.Group{}
 	egp.SetLimit(10)
@@ -59,34 +66,6 @@ func (app *BlogSummaryApp) UpdateBlogSummaryContent(ctx context.Context, storage
 	return nil
 }
 
-// updateMdWeightAndDraft 更新文章权重和Draft信息
-// 1. 文章长度过短的，更新处理
-func (app *BlogSummaryApp) updateMdWeightAndDraft(ctx context.Context, mdPath string) error {
-	// 初始每个md
-	md, err := entity.NewBlogMD(mdPath)
-	if err != nil {
-		log.Errorf("entity new blog md [%s] got err: %s", mdPath, err)
-		return errors.Wrap(err, "entity new blog md got err in replace")
-	}
-
-	// 长度小于10，更新DB记录的Draft为true
-	md.MDHeader.Draft = md.IsDraft()
-	md.MDHeader.Weight = md.CalcArticleWeight()
-	log.Debugf("replace md path[%s] with new weight(%v), draft(%v)", mdPath, md.MDHeader.Weight, md.MDHeader.Draft)
-
-	// db信息更新
-	if err := app.sqliteInfra.UpdateBlogMDRecord(ctx, md); err != nil {
-		return errors.Wrap(err, "update blog weight and draft got err")
-	}
-
-	// 用新的yaml header替换
-	if err := md.ReplaceWithNewYamlHeader(); err != nil {
-		return errors.Wrapf(err, "replace write into blog file[%s] got err", md.Filepath)
-	}
-
-	return nil
-}
-
 // replaceMdSummary 将keywords, summary 填充到原有的blog文章内
 func (app *BlogSummaryApp) replaceMdSummary(ctx context.Context, mdPath string) error {
 	// DB查看是否存在mdPath已Replace过了
@@ -101,18 +80,23 @@ func (app *BlogSummaryApp) replaceMdSummary(ctx context.Context, mdPath string) 
 	// 初始每个md
 	md, err := entity.NewBlogMD(mdPath)
 	if err != nil {
-		log.Errorf("entity new blog md [%s] got err: %s", mdPath, err)
+		log.Warnf("entity new blog md [%s] got err: %s", mdPath, err)
 		return errors.Wrap(err, "entity new blog md got err in replace")
 	}
 
 	// 检测md是否符合replace规则
 	if md.IsOverMaxTokenSize() {
-		log.Warnf("md content[%s] over max token size", mdPath)
+		log.Warnf("md[%s] content is over max token size", mdPath)
+		return nil
+	}
+
+	if md.IsContentTooSmall() {
+		log.Warnf("md[%s] content is too small", mdPath)
 		return nil
 	}
 
 	// content 提前摘要
-	summary, err := app.srv.BlogSummary(ctx, md.MDContent)
+	summary, err := app.srv.BlogSummary(ctx, md)
 	if err != nil {
 		return errors.Wrap(err, "srv blog summary got err")
 	}
@@ -128,6 +112,38 @@ func (app *BlogSummaryApp) replaceMdSummary(ctx context.Context, mdPath string) 
 	// 添加MD Record记录
 	if err := app.sqliteInfra.AddBlogMDRecord(ctx, md); err != nil {
 		log.Errorf("insert md file[%s] summary record got err: %s", md.Filepath, err)
+	}
+
+	return nil
+}
+
+// updateMdWeightAndDraft 更新文章权重和Draft信息
+// 1. 文章长度过短的，更新处理
+func (app *BlogSummaryApp) updateMdWeightAndDraft(ctx context.Context, mdPath string) error {
+	// 初始每个md
+	md, err := entity.NewBlogMD(mdPath)
+	if err != nil {
+		log.Errorf("entity new blog md [%s] got err: %s", mdPath, err)
+		return errors.Wrap(err, "entity new blog md got err in replace")
+	}
+
+	// MD信息更新
+	header := md.MDHeader
+	header.Draft = md.IsDraft()                                                           // 是否手稿
+	header.Weight = md.CalcArticleWeight()                                                // 文章权重
+	header.ShortMark = md.ShortMark()                                                     // 文章签名
+	header.WordCounts = md.WordCount()                                                    // 文章字符统计
+	header.Tags = shim.ProcessStringsSlice(header.Tags, nil, strings.ToLower)             // 文章标签统一转小写
+	header.Categories = shim.ProcessStringsSlice(header.Categories, nil, strings.ToLower) // 文章标签统一转小写
+
+	// db信息更新
+	if err := app.sqliteInfra.UpdateBlogMDRecord(ctx, md); err != nil {
+		return errors.Wrap(err, "update blog weight and draft got err")
+	}
+
+	// 用新的yaml header替换
+	if err := md.ReplaceWithNewYamlHeader(); err != nil {
+		return errors.Wrapf(err, "replace write into blog file[%s] got err", md.Filepath)
 	}
 
 	return nil
