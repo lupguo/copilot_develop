@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"regexp"
 
 	"github.com/lupguo/copilot_develop/app/domain/entity"
 	"github.com/lupguo/copilot_develop/app/domain/repos"
@@ -15,7 +14,7 @@ import (
 // IServicesSummaryAI AI汇总服务接口
 type IServicesSummaryAI interface {
 	// BlogSummary 摘要总结+关键字
-	BlogSummary(ctx context.Context, content string) (summary *entity.BlogSummary, err error)
+	BlogSummary(ctx context.Context, md *entity.BlogMD) (summary *entity.ArticleSummary, err error)
 }
 
 // AIService AI汇总服务
@@ -30,7 +29,7 @@ func NewAIService(infra repos.IReposOpenAI, appPromptMap config.AppPromptMap) *A
 }
 
 // BlogSummary 内容摘要+关键字总结
-func (srv *AIService) BlogSummary(ctx context.Context, content string) (summary *entity.BlogSummary, err error) {
+func (srv *AIService) BlogSummary(ctx context.Context, md *entity.BlogMD) (summary *entity.ArticleSummary, err error) {
 	promptKey := config.PromptKeySummaryBlog
 	prompt, ok := srv.appPromptMap[promptKey]
 	if !ok {
@@ -40,34 +39,31 @@ func (srv *AIService) BlogSummary(ctx context.Context, content string) (summary 
 	// 请求头
 	userMsg := []openai.ChatCompletionMessage{{
 		Role:    openai.ChatMessageRoleUser,
-		Content: minimiseContent(content),
+		Content: md.MinimiseContent(),
 	}}
 	req := &openai.ChatCompletionRequest{
 		Model:     prompt.AIMode,
 		Messages:  append(prompt.PredefinedPrompts, userMsg...),
-		MaxTokens: 4000,
+		MaxTokens: prompt.MaxTokens,
 	}
 
 	// 请求OpenAI获取内容
 	resp, err := srv.Infra.DoAIChatCompletionRequest(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "infra do ai chat completion request got err")
 	}
 
-	summary = &entity.BlogSummary{}
+	// 响应信息
+	summary = &entity.ArticleSummary{}
 	if err := json.Unmarshal([]byte(resp.Choices[0].Message.Content), summary); err != nil {
 		return nil, errors.Wrap(err, "the blog summary received response from AI proxy, attempted to unmarshal resp content but got an error")
 	}
 
-	// 取值
+	// 检测summary结果
+	if summary.Summary == "" || summary.Keywords == "" || summary.Description == "" {
+		return nil, errors.Wrapf(err, "blog summary empty values, summary: %s\n keywords: %s\n, description: %s\n",
+			summary.Summary, summary.Keywords, summary.Description)
+	}
+
 	return summary, nil
-}
-
-// MDCodeRegex markdown中的代码正则
-var MDCodeRegex = regexp.MustCompile("(?ms)```.*```")
-
-// 精简content内容，降低token使用量
-// 1. 剔除```符号```内的内容
-func minimiseContent(content string) string {
-	return MDCodeRegex.ReplaceAllString(content, "")
 }

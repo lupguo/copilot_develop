@@ -1,8 +1,6 @@
 package interfaces
 
 import (
-	"context"
-
 	"github.com/lupguo/copilot_develop/app/application"
 )
 
@@ -12,10 +10,10 @@ type CopilotDevelop struct {
 }
 
 // UpdateBlogSummary 更新BlogSummary信息
-func (c *CopilotDevelop) UpdateBlogSummary() error {
-	ctx := context.Background()
-	// 博客地址
-	storageRoot := "/data/www/tkstorm.com/content/posts"
-
-	return c.blogSummaryApp.UpdateBlogSummaryContent(ctx, storageRoot)
-}
+// func (c *CopilotDevelop) UpdateBlogSummary() error {
+// 	ctx := context.Background()
+// 	// 博客地址
+// 	storageRoot := "/data/www/tkstorm.com/content/posts"
+//
+// 	return c.blogSummaryApp.UpdateBlogSummaryContent(ctx, storageRoot)
+// }

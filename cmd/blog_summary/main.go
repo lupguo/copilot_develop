@@ -18,7 +18,7 @@ import (
 // 2. 并行化读取文件内容，通过OpenAI提取文件内容摘要、关键字信息，对原MD进行替换
 func main() {
 	var (
-		blogStoragePath     = `/private/data/www/tkstorm.com/content/posts/cs/network/http/https-acme-sh.md`
+		blogStoragePath     = `/private/data/www/tkstorm.com/content/posts`
 		appYamlConfigFile   = filepath.Join(config.GetConfigPath(), "app_dev.yaml")
 		appPromptConfigFile = filepath.Join(config.GetConfigPath(), "prompt.yaml")
 		sqliteDBFile        = filepath.Join(config.GetDataPath(), "blog_summary.db")

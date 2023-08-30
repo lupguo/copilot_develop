@@ -125,7 +125,7 @@ func Test_truncateFileAndWriteNewContent(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := writeWithNewYamlHeader(tt.args.md, tt.args.newYamHeader); (err != nil) != tt.wantErr {
+			if err := tt.args.md.ReplaceWithNewYamlHeader(); (err != nil) != tt.wantErr {
 				t.Errorf("writeWithNewYamlHeader() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -162,9 +162,9 @@ type mockAISrv struct {
 	mock.Mock
 }
 
-func (m *mockAISrv) BlogSummary(ctx context.Context, content string) (summary *entity.BlogSummary, err error) {
-	args := m.Called(ctx, content)
-	return args[0].(*entity.BlogSummary), args.Error(1)
+func (m *mockAISrv) BlogSummary(ctx context.Context, md *entity.BlogMD) (summary *entity.ArticleSummary, err error) {
+	args := m.Called(ctx, md)
+	return args[0].(*entity.ArticleSummary), args.Error(1)
 }
 
 // mock 出一个sqliteInfra
@@ -172,24 +172,34 @@ type mockInfra struct {
 	mock.Mock
 }
 
+func (m *mockInfra) SelBlogMDRecord(ctx context.Context, path string) (*entity.BlogArticle, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockInfra) AddBlogMDRecord(ctx context.Context, md *entity.BlogMD) error {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockInfra) UpdateBlogMDRecord(ctx context.Context, md *entity.BlogMD) error {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (m *mockInfra) InitBlogSummaryDB(ctx context.Context) error {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (m *mockInfra) SelSummaryRecord(ctx context.Context, path string) (*entity.BlogSummaryUpdatedRecord, error) {
+func (m *mockInfra) SelSummaryRecord(ctx context.Context, path string) (*entity.BlogArticle, error) {
 	args := m.Called(ctx, path)
-	return args[0].(*entity.BlogSummaryUpdatedRecord), args.Error(1)
+	return args[0].(*entity.BlogArticle), args.Error(1)
 }
 
 func (m *mockInfra) CleanAllBlogSummaryDB(ctx context.Context) error {
 	// TODO implement me
 	panic("implement me")
-}
-
-func (m *mockInfra) AddMDSummaryRecord(ctx context.Context, md *entity.BlogMD) error {
-	args := m.Called(ctx, md)
-	return args.Error(0)
 }
 
 func TestBlogSummaryApp_ReplaceKeywordsAndSummary(t *testing.T) {
@@ -217,7 +227,7 @@ iPhone 是与 Android 并列的世界上最大的两个智能手机平台之一�
 	// mockAISrv服务
 	mockAISrv := new(mockAISrv)
 	ctx := context.Background()
-	mockAISrv.On("BlogSummary", ctx, mock.Anything).Return(&entity.BlogSummary{
+	mockAISrv.On("ArticleSummary", ctx, mock.Anything).Return(&entity.ArticleSummary{
 		Keywords:    "Mock Keyword1, Mock Keyword2",
 		Summary:     "Mock summary...",
 		Description: "Mock Description...",
@@ -225,8 +235,8 @@ iPhone 是与 Android 并列的世界上最大的两个智能手机平台之一�
 
 	// mock sqliteInfra服务
 	mockSqliteInfra := new(mockInfra)
-	mockSqliteInfra.On("SelSummaryRecord", ctx, mock.Anything).Return(
-		&entity.BlogSummaryUpdatedRecord{
+	mockSqliteInfra.On("SelBlogMDRecord", ctx, mock.Anything).Return(
+		&entity.BlogArticle{
 			Path:        "mock_path",
 			Title:       "mock_title",
 			Keywords:    "",
@@ -237,7 +247,7 @@ iPhone 是与 Android 并列的世界上最大的两个智能手机平台之一�
 		// errors.New("mock db record not exist err"),
 		nil,
 	)
-	mockSqliteInfra.On("AddMDSummaryRecord", ctx, mock.Anything, mock.Anything).Return(
+	mockSqliteInfra.On("AddBlogMDRecord", ctx, mock.Anything, mock.Anything).Return(
 		nil,
 	)
 
@@ -258,8 +268,8 @@ iPhone 是与 Android 并列的世界上最大的两个智能手机平台之一�
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := NewBlogSummaryApp(mockAISrv, mockSqliteInfra)
-			if err := app.ReplaceKeywordsAndSummary(tt.args.ctx, tt.args.blogFilePath); (err != nil) != tt.wantErr {
-				t.Errorf("ReplaceKeywordsAndSummary() error = %v, wantErr %v", err, tt.wantErr)
+			if err := app.replaceMdSummary(tt.args.ctx, tt.args.blogFilePath); (err != nil) != tt.wantErr {
+				t.Errorf("replaceMdSummary() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			c, err := os.ReadFile(tempFile)

@@ -12,10 +12,6 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const (
-	UrlOpenAISummary = "/v3/"
-)
-
 // OpenAIHttpProxyClient OpenAI Http代理客户端
 type OpenAIHttpProxyClient struct {
 	proxyClient  *openai.Client
@@ -46,46 +42,17 @@ func NewOpenAIHttpProxyClient(cfg *config.AppConfig) (*OpenAIHttpProxyClient, er
 	}, nil
 }
 
-//
-// // ExtractKeywords 提取content内容的关键字信息
-// func (o *OpenAIHttpProxyClient) ExtractKeywords(ctx context.Context, content string) (keywords []string, err error) {
-// 	promptKey := "summary-blog"
-// 	prompt, ok := o.appPromptMap[promptKey]
-// 	if !ok {
-// 		return nil, errors.Errorf("prompt config key[%s] not exist", promptKey)
-// 	}
-//
-// 	// 请求头
-// 	userMsg := []openai.ChatCompletionMessage{{
-// 		Role:    openai.ChatMessageRoleUser,
-// 		Content: content,
-// 	}}
-// 	req := &openai.ChatCompletionRequest{
-// 		Model:     prompt.AIMode,
-// 		Messages:  append(prompt.PredefinedPrompts, userMsg...),
-// 		MaxTokens: 1440,
-// 	}
-//
-// 	// 请求OpenAI获取内容
-// 	resp, err := o.DoAIChatCompletionRequest(ctx, req)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	_ = resp
-//
-// 	// 取值
-// 	return nil, nil
-// }
-
 // DoAIChatCompletionRequest 通用的AI ChatCompletion代理请求
 func (o *OpenAIHttpProxyClient) DoAIChatCompletionRequest(ctx context.Context, req *openai.ChatCompletionRequest) (response *openai.ChatCompletionResponse, err error) {
-	log.Debugf("AI REQ:\n%s", shim.ToJsonString(req, true))
 	resp, err := o.proxyClient.CreateChatCompletion(ctx, *req)
 	if err != nil {
-		log.Errorf("CreateChatCompletion error: %v\n", err)
+		log.Errorf("DoAIChatCompletionRequest() got error: %v\n", err)
 		return nil, errors.Wrap(err, "do AI chat completion request got err")
 	}
-	log.Debugf("AI RESP:\n%s", shim.ToJsonString(resp, true))
+
+	// 精简打印请求和响应信息
+	// req.Messages[0].Content
+	log.Debugf("\nAI REQ:\n%s\nAI RESP:\n%s", shim.ToJsonString(req, true), shim.ToJsonString(resp, true))
 
 	return &resp, nil
 }
