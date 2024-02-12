@@ -19,22 +19,23 @@ type IServicesSummaryAI interface {
 
 // AIService AI汇总服务
 type AIService struct {
-	Infra        repos.IReposOpenAI
-	appPromptMap config.AppPromptMap
+	Infra repos.IReposOpenAI
 }
 
 // NewAIService 底层的SummaryAI服务
-func NewAIService(infra repos.IReposOpenAI, appPromptMap config.AppPromptMap) *AIService {
-	return &AIService{Infra: infra, appPromptMap: appPromptMap}
+func NewAIService(infra repos.IReposOpenAI) *AIService {
+	return &AIService{
+		Infra: infra,
+	}
 }
 
 // SummaryBlogMD 内容摘要+关键字总结
 func (srv *AIService) SummaryBlogMD(ctx context.Context, md *entity.BlogMD) (summary *entity.ArticleSummary, err error) {
 	// prompt key
-	promptKey := config.PromptKeySummaryBlog
-	prompt, ok := srv.appPromptMap[promptKey]
-	if !ok {
-		return nil, errors.Errorf("prompt config key[%s] not exist", promptKey)
+	key := config.PromptKeySummaryBlog
+	prompt, err := config.GetPrompt(key)
+	if err != nil {
+		return nil, errors.Wrap(err, "summary blog cannot found ai prompt key")
 	}
 
 	// request OpenAI chat completion

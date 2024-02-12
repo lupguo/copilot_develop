@@ -3,73 +3,79 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
 
-// AppConfig 应用配置
-type AppConfig struct {
-	App struct {
-		AuthToken string `yaml:"auth_token"`
-		SocksURL  string `yaml:"socks_url"`
-	} `yaml:"app"`
+type OpenAIProxyConfig struct {
+	AuthToken string `yaml:"auth_token"`
+	SocksURL  string `yaml:"socks_url"`
 }
 
-// ParseAppConfig 解析配置文件
-func ParseAppConfig(filename string) (*AppConfig, error) {
+type BlogSummaryConfig struct {
+	AIPromptFile string `yaml:"ai_prompt_file"` // blog summary prompt配置
+	SQLiteDBFile string `yaml:"sqlite_db_file"` // blog sqlite db存储
+}
+
+// Config 应用配置
+type Config struct {
+	App *AppConfig `yaml:"app"`
+}
+
+type AppConfig struct {
+	RootPath    string             `yaml:"root_path"` // 根目录
+	OpenAIProxy *OpenAIProxyConfig `yaml:"openai_proxy"`
+	BlogSummary *BlogSummaryConfig `yaml:"blog_summary"`
+}
+
+var (
+	defaultConfig *Config
+	appConfig     *AppConfig
+)
+
+// ParseConfig 解析配置文件
+func ParseConfig(filename string) error {
 	file, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, errors.Wrapf(err, "parse config filename: %s got err", filename)
+		return errors.Wrapf(err, "parse config filename: %s got err", filename)
 	}
 
 	// 解析成结构体
-	cfg := AppConfig{}
-	if err := yaml.Unmarshal(file, &cfg); err != nil {
-		return nil, errors.Wrap(err, "yaml unmarshal app config got err")
+	if err = yaml.Unmarshal(file, &defaultConfig); err != nil {
+		return errors.Wrap(err, "yaml unmarshal app config got err")
 	}
 
-	return &cfg, nil
-}
-
-// InitAppConfig 初始AppConfig配置信息
-func InitAppConfig(filename string) error {
-	cfg, err := ParseAppConfig(filename)
-	if err != nil {
-		return err
+	// 解析检测
+	appConfig = defaultConfig.App
+	switch {
+	case appConfig.RootPath == "":
+		return errors.New("empty root_path config")
+	case appConfig.OpenAIProxy == nil:
+		return errors.New("empty openai_proxy config")
+	case appConfig.BlogSummary == nil:
+		return errors.New("empty blog_summary config")
 	}
-	defaultAppConfig = cfg
+
+	// prompt parse
+	if err = ParseAppPromptConfig(GetPromptConfigPath()); err != nil {
+		return errors.Wrapf(err, "parse app prompt config got err")
+	}
+
 	return nil
 }
 
-var defaultAppConfig *AppConfig
-
-// GetAppConfig 获取AppConfig配置信息
-func GetAppConfig() *AppConfig {
-	return defaultAppConfig
+// GetPromptConfigPath 获取配置文件路径
+func GetPromptConfigPath() string {
+	return filepath.Join(appConfig.RootPath, appConfig.BlogSummary.AIPromptFile)
 }
 
-// GetAppRoot 获取项目根目录
-func GetAppRoot() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-	index := strings.Index(dir, "app/application")
-
-	if index > 0 {
-		return dir[:index]
-	}
-	return dir
+// GetDBFilePath 获取数据存储路径
+func GetDBFilePath() string {
+	return filepath.Join(appConfig.RootPath, appConfig.BlogSummary.SQLiteDBFile)
 }
 
-// GetConfigPath 获取配置文件路径
-func GetConfigPath() string {
-	return filepath.Join(GetAppRoot(), "conf")
-}
-
-// GetDataPath 获取数据存储路径
-func GetDataPath() string {
-	return filepath.Join(GetAppRoot(), "data")
+// GetOpenAIProxy 底层OpenAI Http Proxy配置
+func GetOpenAIProxy() *OpenAIProxyConfig {
+	return appConfig.OpenAIProxy
 }

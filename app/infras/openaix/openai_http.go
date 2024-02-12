@@ -14,17 +14,18 @@ import (
 
 // OpenAIHttpProxyClient OpenAI Http代理客户端
 type OpenAIHttpProxyClient struct {
-	proxyClient  *openai.Client
-	appPromptMap config.AppPromptMap
+	proxyClient *openai.Client
 }
 
 // NewOpenAIHttpProxyClient 初始一个OpenAI代理实例
-func NewOpenAIHttpProxyClient(cfg *config.AppConfig) (*OpenAIHttpProxyClient, error) {
+func NewOpenAIHttpProxyClient() (*OpenAIHttpProxyClient, error) {
+	cfg := config.GetOpenAIProxy()
+
 	// 初始openAI配置
-	openaiCfg := openai.DefaultConfig(cfg.App.AuthToken)
+	openaiCfg := openai.DefaultConfig(cfg.AuthToken)
 
 	// 设置代理地址
-	proxyURL, err := url.Parse(cfg.App.SocksURL)
+	proxyURL, err := url.Parse(cfg.SocksURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error parsing proxy URL")
 	}
@@ -34,7 +35,7 @@ func NewOpenAIHttpProxyClient(cfg *config.AppConfig) (*OpenAIHttpProxyClient, er
 		Transport: &http.Transport{
 			Proxy: http.ProxyURL(proxyURL),
 		},
-		Timeout: 0,
+		Timeout: 0, // 默认不超时
 	}
 
 	return &OpenAIHttpProxyClient{

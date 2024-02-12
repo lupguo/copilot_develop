@@ -15,5 +15,5 @@ type CopilotDevelop struct {
 // 	// 博客地址
 // 	storageRoot := "/data/www/tkstorm.com/content/posts"
 //
-// 	return c.blogSummaryApp.UpdateBlogSummaryContent(ctx, storageRoot)
+// 	return c.blogSummaryApp.UpdateBlogHeaderYaml(ctx, storageRoot)
 // }

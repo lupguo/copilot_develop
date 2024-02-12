@@ -22,11 +22,14 @@ type BlogSummaryApp struct {
 
 // NewBlogSummaryApp 初始一个BlogSummaryApp
 func NewBlogSummaryApp(aiSrv service.IServicesSummaryAI, sqliteInfra repos.IReposSQLiteBlogSummary) *BlogSummaryApp {
-	return &BlogSummaryApp{aiSrv: aiSrv, sqliteInfra: sqliteInfra}
+	return &BlogSummaryApp{
+		aiSrv:       aiSrv,
+		sqliteInfra: sqliteInfra,
+	}
 }
 
-// UpdateBlogSummaryContent 并发更新Blog的汇总信息
-func (app *BlogSummaryApp) UpdateBlogSummaryContent(ctx context.Context, storageRoot string) error {
+// UpdateBlogHeaderYaml 并发更新Blog的汇总信息
+func (app *BlogSummaryApp) UpdateBlogHeaderYaml(ctx context.Context, storageRoot string) error {
 	// 查询目录下所有的markdown目录 -> slice内 []*BlogMD
 	blogFilePaths, err := shim.FindFilePaths(storageRoot, "*.md")
 	if err != nil {

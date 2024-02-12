@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"path/filepath"
 	"time"
 
 	"github.com/lupguo/copilot_develop/app/application"
@@ -10,27 +9,38 @@ import (
 	"github.com/lupguo/copilot_develop/app/infras/dbs"
 	"github.com/lupguo/copilot_develop/app/infras/openaix"
 	"github.com/lupguo/copilot_develop/config"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 )
+
+var (
+	configFile string // 应用配置文件
+	blogPath   string // blog路径
+)
+
+func init() {
+	pflag.StringVar(&configFile, "conf", "./config.yaml", "Path to the app YAML config file")
+	pflag.StringVar(&blogPath, "blog_path", "/private/data/www/tkstorm.com/content/", "The path of Blog content AI Summary")
+}
 
 // Blog总结基本流程
 // 1. 获取指定目录的所有文件内容，返回文件的绝对路径集合
 // 2. 并行化读取文件内容，通过OpenAI提取文件内容摘要、关键字信息，对原MD进行替换
 func main() {
-	var (
-		blogStoragePath     = `/private/data/www/tkstorm.com/content/`
-		appYamlConfigFile   = filepath.Join(config.GetConfigPath(), "app_dev.yaml")
-		appPromptConfigFile = filepath.Join(config.GetConfigPath(), "prompt.yaml")
-		sqliteDBFile        = filepath.Join(config.GetDataPath(), "blog_summary.db")
-	)
+	pflag.Parse()
+	// client config
+	if err := config.ParseConfig(configFile); err != nil {
+		log.Fatalf("parse config got err: %s", err)
+	}
 
 	start := time.Now()
-	app, err := initializeBlogSummaryApp(appYamlConfigFile, appPromptConfigFile, sqliteDBFile)
+	app, err := buildBlogSummaryApp()
 	if err != nil {
 		log.Fatalf("init blog summary got err: %s", err)
 	}
 
-	err = app.UpdateBlogSummaryContent(context.Background(), blogStoragePath)
+	err = app.UpdateBlogHeaderYaml(context.Background(), blogPath)
 	if err != nil {
 		log.Fatalf("update blog summary content got err: %s", err)
 	}
@@ -38,34 +48,23 @@ func main() {
 	log.Infof("update blog summary using time: %s", time.Since(start))
 }
 
-func initializeBlogSummaryApp(appYamlConfigFile, appPromptConfigFile string, sqliteDBFile string) (*application.BlogSummaryApp, error) {
-	// client config
-	appCfg, err := config.ParseAppConfig(appYamlConfigFile)
+func buildBlogSummaryApp() (*application.BlogSummaryApp, error) {
+	// sqlite infra
+	sqliteDbInfra, err := dbs.NewBlogSummarySqliteInfra(config.GetDBFilePath())
 	if err != nil {
-		return nil, err
-	}
-
-	// app prompt
-	appPromptCfg, err := config.ParseAppPromptConfig(appPromptConfigFile)
-	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "new sqlite infra got err")
 	}
 
 	// openAI infra
-	openAIInfra, err := openaix.NewOpenAIHttpProxyClient(appCfg)
+	openAIInfra, err := openaix.NewOpenAIHttpProxyClient()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "new open ai http proxy client got err")
 	}
 
-	// service
-	aiService := service.NewAIService(openAIInfra, appPromptCfg)
-
-	// app
-	sqliteDbInfra, err := dbs.NewBlogSummarySqliteInfra(sqliteDBFile)
-	if err != nil {
-		return nil, err
-	}
-	blogSummaryApp := application.NewBlogSummaryApp(aiService, sqliteDbInfra)
-
+	// blog summary app
+	blogSummaryApp := application.NewBlogSummaryApp(
+		service.NewAIService(openAIInfra),
+		sqliteDbInfra,
+	)
 	return blogSummaryApp, nil
 }

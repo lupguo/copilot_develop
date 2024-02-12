@@ -25,28 +25,35 @@ type Prompt struct {
 	PredefinedPrompts []openai.ChatCompletionMessage `yaml:"predefined_prompts"`
 }
 
-// AppPromptMap name到提示词的映射
-type AppPromptMap map[string]*Prompt
+var defaultPromptSetting map[string]*Prompt
 
 // ParseAppPromptConfig 解析App提示词配置文件
-func ParseAppPromptConfig(filename string) (AppPromptMap, error) {
+func ParseAppPromptConfig(filename string) error {
 	file, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, errors.Wrap(err, "read prompt yaml config got err")
+		return errors.Wrap(err, "read prompt yaml config got err")
 	}
 
 	// 解析prompt app config
 	cfg := AppPromptConfig{}
 	err = yaml.Unmarshal(file, &cfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "parse app prompt yaml config got err")
+		return errors.Wrap(err, "parse app prompt yaml config got err")
 	}
 
 	// 转成map
-	m := AppPromptMap{}
+	defaultPromptSetting = make(map[string]*Prompt)
 	for _, prompt := range cfg.AppPrompts {
-		m[prompt.Name] = &prompt
+		defaultPromptSetting[prompt.Name] = &prompt
 	}
 
-	return m, nil
+	return nil
+}
+
+// GetPrompt 获取指定的Prompt配置信息
+func GetPrompt(key string) (*Prompt, error) {
+	if v, ok := defaultPromptSetting[key]; ok {
+		return v, nil
+	}
+	return nil, errors.Errorf("prompt[%s] not found", key)
 }
