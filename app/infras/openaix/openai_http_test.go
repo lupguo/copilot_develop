@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/lupguo/copilot_develop/app/infras/config"
+	"github.com/lupguo/copilot_develop/config"
 	"github.com/sashabaranov/go-openai"
 )
 

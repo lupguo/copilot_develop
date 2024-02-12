@@ -7,9 +7,9 @@ import (
 
 	"github.com/lupguo/copilot_develop/app/application"
 	"github.com/lupguo/copilot_develop/app/domain/service"
-	"github.com/lupguo/copilot_develop/app/infras/config"
 	"github.com/lupguo/copilot_develop/app/infras/dbs"
 	"github.com/lupguo/copilot_develop/app/infras/openaix"
+	"github.com/lupguo/copilot_develop/config"
 	log "github.com/sirupsen/logrus"
 )
 

@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/hold7techs/go-shim/shim"
-	"github.com/lupguo/copilot_develop/app/infras/config"
+	"github.com/lupguo/copilot_develop/config"
 	"github.com/pkg/errors"
 	"github.com/sashabaranov/go-openai"
 	log "github.com/sirupsen/logrus"

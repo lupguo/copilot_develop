@@ -6,7 +6,7 @@ import (
 
 	"github.com/lupguo/copilot_develop/app/domain/entity"
 	"github.com/lupguo/copilot_develop/app/domain/repos"
-	"github.com/lupguo/copilot_develop/app/infras/config"
+	"github.com/lupguo/copilot_develop/config"
 	"github.com/pkg/errors"
 	"github.com/sashabaranov/go-openai"
 )
