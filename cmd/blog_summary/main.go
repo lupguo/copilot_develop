@@ -5,12 +5,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/hold7techs/go-shim/log"
 	"github.com/lupguo/copilot_develop/app/application"
 	"github.com/lupguo/copilot_develop/app/domain/service"
 	"github.com/lupguo/copilot_develop/app/infras/config"
 	"github.com/lupguo/copilot_develop/app/infras/dbs"
 	"github.com/lupguo/copilot_develop/app/infras/openaix"
+	log "github.com/sirupsen/logrus"
 )
 
 // Blog总结基本流程
@@ -18,7 +18,7 @@ import (
 // 2. 并行化读取文件内容，通过OpenAI提取文件内容摘要、关键字信息，对原MD进行替换
 func main() {
 	var (
-		blogStoragePath     = `/private/data/www/tkstorm.com/content/posts`
+		blogStoragePath     = `/private/data/www/tkstorm.com/content/posts/architecture/design-principle`
 		appYamlConfigFile   = filepath.Join(config.GetConfigPath(), "app_dev.yaml")
 		appPromptConfigFile = filepath.Join(config.GetConfigPath(), "prompt.yaml")
 		sqliteDBFile        = filepath.Join(config.GetDataPath(), "blog_summary.db")
@@ -35,7 +35,7 @@ func main() {
 		log.Fatalf("update blog summary content got err: %s", err)
 	}
 
-	log.Debugf("update blog summary using time: %s", time.Since(start))
+	log.Infof("update blog summary using time: %s", time.Since(start))
 }
 
 func initializeBlogSummaryApp(appYamlConfigFile, appPromptConfigFile string, sqliteDBFile string) (*application.BlogSummaryApp, error) {

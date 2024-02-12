@@ -13,8 +13,8 @@ import (
 
 // IServicesSummaryAI AI汇总服务接口
 type IServicesSummaryAI interface {
-	// BlogSummary 摘要总结+关键字
-	BlogSummary(ctx context.Context, md *entity.BlogMD) (summary *entity.ArticleSummary, err error)
+	// SummaryBlogMD 摘要总结+关键字
+	SummaryBlogMD(ctx context.Context, md *entity.BlogMD) (summary *entity.ArticleSummary, err error)
 }
 
 // AIService AI汇总服务
@@ -28,23 +28,24 @@ func NewAIService(infra repos.IReposOpenAI, appPromptMap config.AppPromptMap) *A
 	return &AIService{Infra: infra, appPromptMap: appPromptMap}
 }
 
-// BlogSummary 内容摘要+关键字总结
-func (srv *AIService) BlogSummary(ctx context.Context, md *entity.BlogMD) (summary *entity.ArticleSummary, err error) {
+// SummaryBlogMD 内容摘要+关键字总结
+func (srv *AIService) SummaryBlogMD(ctx context.Context, md *entity.BlogMD) (summary *entity.ArticleSummary, err error) {
+	// prompt key
 	promptKey := config.PromptKeySummaryBlog
 	prompt, ok := srv.appPromptMap[promptKey]
 	if !ok {
 		return nil, errors.Errorf("prompt config key[%s] not exist", promptKey)
 	}
 
-	// 请求头
+	// request OpenAI chat completion
 	userMsg := []openai.ChatCompletionMessage{{
 		Role:    openai.ChatMessageRoleUser,
-		Content: md.MinimiseContent(),
+		Content: md.MiniData.MiniContent,
 	}}
 	req := &openai.ChatCompletionRequest{
 		Model:     prompt.AIMode,
-		Messages:  append(prompt.PredefinedPrompts, userMsg...),
 		MaxTokens: prompt.MaxTokens,
+		Messages:  append(prompt.PredefinedPrompts, userMsg...),
 	}
 
 	// 请求OpenAI获取内容

@@ -40,7 +40,7 @@ func TestOpenAIHttpProxyClient_Summary(t *testing.T) {
 	t.Run("t1", func(t *testing.T) {
 		gotSummary, err := aiProxyClient.DoAIChatCompletionRequest(context.Background(), req)
 		if err != nil {
-			t.Errorf("BlogSummary() error = %v", err)
+			t.Errorf("SummaryBlogMD() error = %v", err)
 			return
 		}
 		t.Logf("summary:\n%+v", gotSummary)

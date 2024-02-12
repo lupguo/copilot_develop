@@ -7,15 +7,21 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
+	"github.com/hold7techs/go-shim/shim"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
 
 const (
 	// OpenAIMinTokenSize 最小请求OpenAI的rune字符大小，太少没有必要请求OpneAI
-	OpenAIMinTokenSize = 500
+	OpenAIMinTokenSize = 1000
+
+	// OpenAIMediumTokenSize 中等长度内容，
+	OpenAIMediumTokenSize = 5000
+
 	// OpenAIMaxTokenSize OpenAI最大token阈值限制(按16k的3/4估算)
 	OpenAIMaxTokenSize = 12000
 
@@ -33,6 +39,14 @@ type BlogMD struct {
 	Filepath  string      `json:"filename,omitempty"`
 	MDHeader  *YamlHeader `json:"yaml_header,omitempty"`
 	MDContent string      `json:"md_content,omitempty"`
+	MiniData  *MiniData   `json:"mini_data"` // 精简内容
+}
+
+// MiniData 精简后的内容, 参考: https://platform.openai.com/tokenizer
+type MiniData struct {
+	MiniContent   string `json:"mini_content"`   // 精简化后的内容
+	MinLevel      int    `json:"min_level"`      // 精简化后的等级
+	MinWordsCount int    `json:"min_word_count"` // 精简后内容
 }
 
 // YamlHeader YamlHeader内容
@@ -62,7 +76,8 @@ func (y *YamlHeader) String() string {
 	return string(marshal)
 }
 
-var blogMdRegex = regexp.MustCompile("(?sm)^---\n(.*?)\n---(?:\n+)(.*)$")
+// --- head yaml --- ... content //
+var blogMdRegex = regexp.MustCompile("(?sm)^---\n(.*?)\n---\n+(.*)$")
 
 // NewBlogMD 通过文件filename 初始化一个Blog MD内容
 func NewBlogMD(path string) (*BlogMD, error) {
@@ -77,11 +92,10 @@ func NewBlogMD(path string) (*BlogMD, error) {
 	if len(match) != 3 {
 		return nil, fmt.Errorf("blog content yaml header not found")
 	}
-	// log.Infof("matches: %v", match)
 
 	// 解析YamlHeader
-	yamlHeader := &YamlHeader{}
-	err = yaml.Unmarshal([]byte(match[1]), yamlHeader)
+	header := &YamlHeader{}
+	err = yaml.Unmarshal([]byte(match[1]), header)
 	if err != nil {
 		return nil, errors.Wrap(err, "yaml unmarshal got err")
 	}
@@ -89,9 +103,26 @@ func NewBlogMD(path string) (*BlogMD, error) {
 	// 返回初始的BlogMD实例
 	md := &BlogMD{
 		Filepath:  path,
-		MDHeader:  yamlHeader,
+		MDHeader:  header,
 		MDContent: match[2],
 	}
+
+	// MD信息更新
+	header.WordCounts = wordsCount(md.MDContent)
+	header.Draft = md.IsDraft()                                                           // 是否手稿
+	header.Weight = md.CalcArticleWeight()                                                // 文章权重
+	header.ShortMark = md.ShortMark()                                                     // 文章签名
+	header.Categories = shim.ProcessStringsSlice(header.Categories, nil, strings.ToLower) // 文章分类统一转小写
+	header.Tags = shim.ProcessStringsSlice(header.Tags, nil, strings.ToLower)             // 文章标签统一转小写
+
+	// 精简token size
+	minContent, minLevel := minimiseContent(header.WordCounts, md.MDContent)
+	miniData := &MiniData{
+		MiniContent:   minContent,
+		MinLevel:      minLevel,
+		MinWordsCount: wordsCount(minContent),
+	}
+	md.MiniData = miniData
 
 	return md, nil
 }
@@ -101,24 +132,25 @@ func (md *BlogMD) IsIndexMD() bool {
 	return filepath.Base(md.Filepath) == "_index.md"
 }
 
-// IsOverMaxTokenSize 是否超过了OpenAI的Token阈值
-func (md *BlogMD) IsOverMaxTokenSize() bool {
-	return md.MinimiseContentLength() > OpenAIMaxTokenSize
+// IsMinContentTooLong 文章内容单词太多， 请求OpenAI大概率也行不通
+func (md *BlogMD) IsMinContentTooLong(limitSize int) bool {
+	return md.MiniData.MinWordsCount > limitSize
 }
 
-// IsContentTooSmall 内容太少了，不去请求OpenAI
-func (md *BlogMD) IsContentTooSmall() bool {
-	return md.MinimiseContentLength() < ArticleDraftMinLength
+// IsContentWordsTooSmall 内容单词太少，不去请求OpenAI
+func (md *BlogMD) IsContentWordsTooSmall() bool {
+	return md.MDHeader.WordCounts < ArticleDraftMinLength
 }
 
 // IsDraft 是否为草稿文件
 func (md *BlogMD) IsDraft() bool {
-	if md.MDHeader != nil && md.MDHeader.Draft {
+	// 已标记为草稿
+	if md.MDHeader.Draft == true {
 		return true
 	}
 
-	// 如果长度小于10 默认也为草稿
-	if md.WordCount() < ArticleDraftMinLength {
+	// 如果长度小于draft min length 长度的， 也当为草稿
+	if md.MDHeader.WordCounts < ArticleDraftMinLength {
 		return true
 	}
 
@@ -135,42 +167,48 @@ func (md *BlogMD) ShortMark() string {
 	return header.ShortMark
 }
 
-// MDCodeRegex markdown中的代码正则
-var MDCodeRegex = regexp.MustCompile("(?ms)```.*```")
+// mdCodeRegex markdown中的代码正则
+var mdCodeRegex = regexp.MustCompile("(?ms)```.*```")
+var mdListRightRegex = regexp.MustCompile(`[:：].+`)
+var mdListAllRegex = regexp.MustCompile(`[-1-9].+`)
+var mdReturnRegex = regexp.MustCompile(`\n+`)
 
-// MinimiseContent 返回处理后的最小化内容
-// 通过正则替换content内的代码，降低Token使用量
-// 1. 剔除```符号```内的内容
-func (md *BlogMD) MinimiseContent() string {
-	cont := MDCodeRegex.ReplaceAllString(md.MDContent, "")
-	if len([]rune(cont)) < OpenAIMinTokenSize {
-		return md.MDContent
+// minimiseContent 通过正则替换，将Blog内容缩小，降低OpenAI的Token使用量
+//  1. 剔除```符号```内的内容
+//  2. 删除List列表后内容，即仅保留List列表的头部
+func minimiseContent(wordsCount int, content string) (miniContent string, miniLevel int) {
+	// 基于MD的原始内容长度判断
+	switch {
+	case wordsCount < OpenAIMinTokenSize: // 小于1000，移除code代码
+		contRemoveCode := mdCodeRegex.ReplaceAllString(content, "")
+		return contRemoveCode, 0
+	case wordsCount < OpenAIMediumTokenSize: // 小于5000, 移除code、list右侧内容
+		contRemoveCode := mdCodeRegex.ReplaceAllString(content, "")
+		contRemoveListRight := mdListRightRegex.ReplaceAllString(contRemoveCode, "")
+		contRemoveReturn := mdReturnRegex.ReplaceAllString(contRemoveListRight, "\n")
+		return contRemoveReturn, 1
+	default: // 移除code+list全部内容
+		contRemoveCode := mdCodeRegex.ReplaceAllString(content, "")
+		contRemoveCodeAndList := mdListAllRegex.ReplaceAllString(contRemoveCode, "")
+		contRemoveReturn := mdReturnRegex.ReplaceAllString(contRemoveCodeAndList, "\n")
+		return contRemoveReturn, 2
 	}
-
-	return cont
 }
 
-// RawContentLength 原始内容字节长度
-func (md *BlogMD) RawContentLength() int {
-	return len(md.MDContent)
-}
+// 使用正则表达式匹配单词
+var wordsRegex = regexp.MustCompile(`(\p{Han}|\b\w+\b)`)
 
-// MinimiseContentLength 内容通过精简替换后的内容长度
-func (md *BlogMD) MinimiseContentLength() int {
-	return len(md.MinimiseContent())
-}
-
-// WordCount 原始内容字符统计（含代码内容部分）
-func (md *BlogMD) WordCount() int {
-	return len([]rune(md.MDContent))
+// WordsCount 原始内容字符统计（含代码内容部分）
+func wordsCount(content string) int {
+	matches := wordsRegex.FindAllString(content, -1)
+	return len(matches)
 }
 
 // CalcArticleWeight 计算新的文章权重
 // 文章权重 = 默认文章权重(100) +/- 时间权重 +/- 字数权重(没100长度权重）
 func (md *BlogMD) CalcArticleWeight() int {
-
 	// 内容长度
-	if md.MinimiseContentLength() < ArticleDraftMinLength {
+	if md.MDHeader.WordCounts < ArticleDraftMinLength {
 		return WeightLow
 	}
 

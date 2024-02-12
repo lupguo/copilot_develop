@@ -8,8 +8,8 @@ import (
 
 // IReposOpenAI 负责和底层OpenAI交互的接口
 type IReposOpenAI interface {
-	// // BlogSummary 摘要总结
-	// BlogSummary(ctx context.Context, content string) (summary string, err error)
+	// // SummaryBlogMD 摘要总结
+	// SummaryBlogMD(ctx context.Context, content string) (summary string, err error)
 	//
 	// // ExtractKeywords 内容关键字提炼
 	// ExtractKeywords(ctx context.Context, content string) (keywords []string, err error)

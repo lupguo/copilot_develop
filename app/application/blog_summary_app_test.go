@@ -162,7 +162,7 @@ type mockAISrv struct {
 	mock.Mock
 }
 
-func (m *mockAISrv) BlogSummary(ctx context.Context, md *entity.BlogMD) (summary *entity.ArticleSummary, err error) {
+func (m *mockAISrv) SummaryBlogMD(ctx context.Context, md *entity.BlogMD) (summary *entity.ArticleSummary, err error) {
 	args := m.Called(ctx, md)
 	return args[0].(*entity.ArticleSummary), args.Error(1)
 }
@@ -242,7 +242,6 @@ iPhone 是与 Android 并列的世界上最大的两个智能手机平台之一�
 			Keywords:    "",
 			Summary:     "",
 			Description: "",
-			Headers:     "",
 		},
 		// errors.New("mock db record not exist err"),
 		nil,
@@ -268,8 +267,8 @@ iPhone 是与 Android 并列的世界上最大的两个智能手机平台之一�
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := NewBlogSummaryApp(mockAISrv, mockSqliteInfra)
-			if err := app.replaceMdSummary(tt.args.ctx, tt.args.blogFilePath); (err != nil) != tt.wantErr {
-				t.Errorf("replaceMdSummary() error = %v, wantErr %v", err, tt.wantErr)
+			if err := app.updateBlogSummaryInfos(tt.args.ctx, tt.args.blogFilePath); (err != nil) != tt.wantErr {
+				t.Errorf("updateBlogSummaryInfos() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			c, err := os.ReadFile(tempFile)
