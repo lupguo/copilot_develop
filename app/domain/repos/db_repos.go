@@ -22,4 +22,7 @@ type IReposSQLiteBlogSummary interface {
 
 	// UpdateBlogMDRecord 更新BlogMD信息
 	UpdateBlogMDRecord(ctx context.Context, md *entity.BlogMD) error
+
+	// ReplaceBlogMDRecord 当文档不存在时候新增，存在时候更新md内容
+	ReplaceBlogMDRecord(ctx context.Context, md *entity.BlogMD) error
 }

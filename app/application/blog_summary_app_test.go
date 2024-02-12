@@ -267,8 +267,8 @@ iPhone 是与 Android 并列的世界上最大的两个智能手机平台之一�
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := NewBlogSummaryApp(mockAISrv, mockSqliteInfra)
-			if err := app.updateBlogSummaryInfos(tt.args.ctx, tt.args.blogFilePath); (err != nil) != tt.wantErr {
-				t.Errorf("updateBlogSummaryInfos() error = %v, wantErr %v", err, tt.wantErr)
+			if err := app.updateBlogYamlHeader(tt.args.ctx, tt.args.blogFilePath); (err != nil) != tt.wantErr {
+				t.Errorf("updateBlogYamlHeader() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			c, err := os.ReadFile(tempFile)

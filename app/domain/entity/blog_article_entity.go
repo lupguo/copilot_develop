@@ -12,7 +12,8 @@ type BlogArticle struct {
 	ID          uint   `gorm:"id"`
 	CreatedAt   string `gorm:"created_at"`
 	UpdatedAt   string `gorm:"updated_at"`
-	DeletedAt   string `gorm:"index"`
+	DeletedAt   string `gorm:"deleted_at"`
+	Date        string `gorm:date`          // 文章编写时间
 	Path        string `gorm:"path"`        // 文章本地存储路径(目前作为唯一的标识)
 	ShortMark   string `gorm:"short_mark"`  // 文章短标记，文章创建后自动生成，基于文章标题做短hash，支持后续软链接快速检索到文章
 	Title       string `gorm:"title"`       // 文章标题

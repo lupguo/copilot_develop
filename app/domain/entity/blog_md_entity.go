@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/hold7techs/go-shim/shim"
 	"github.com/pkg/errors"
@@ -34,6 +33,13 @@ const (
 	ArticleDraftMinLength = 50
 )
 
+// ForceUpdateType 强制更新类型
+type ForceUpdateType string
+
+const (
+	UpdateALL ForceUpdateType = "ALL" // 更新全部YamlHeader内容
+)
+
 // BlogMD Blog文档内容
 type BlogMD struct {
 	Filepath  string      `json:"filename,omitempty"`
@@ -51,20 +57,20 @@ type MiniData struct {
 
 // YamlHeader YamlHeader内容
 type YamlHeader struct {
-	Title             string    `yaml:"title,omitempty"`
-	Date              string    `yaml:"date,omitempty"`
-	Weight            int       `yaml:"weight,omitempty"`
-	Type              string    `yaml:"type,omitempty"`
-	Categories        []string  `yaml:"categories,omitempty"`
-	Tags              []string  `yaml:"tags,omitempty"`
-	Draft             bool      `yaml:"draft"`                  // 是否手稿
-	Keywords          string    `yaml:"keywords,omitempty"`     // 文章关键字
-	Description       string    `yaml:"description,omitempty"`  // 文章描述
-	Summary           string    `yaml:"summary,omitempty"`      // 文章摘要
-	WordCounts        int       `yaml:"words_counts,omitempty"` // 文件字数统计
-	ShortMark         string    `yaml:"short_mark,omitempty"`   // 文章短标记
-	Aliases           []string  `yaml:"aliases,omitempty"`
-	SummaryUpdateTime time.Time `yaml:"summary_update_time,omitempty"`
+	Title       string          `yaml:"title,omitempty"`
+	Date        string          `yaml:"date,omitempty"`
+	Weight      int             `yaml:"weight,omitempty"`
+	Type        string          `yaml:"type,omitempty"`
+	Categories  []string        `yaml:"categories,omitempty"`
+	Tags        []string        `yaml:"tags,omitempty"`
+	Draft       bool            `yaml:"draft"`                  // 是否手稿
+	Keywords    string          `yaml:"keywords,omitempty"`     // 文章关键字
+	Description string          `yaml:"description,omitempty"`  // 文章描述
+	Summary     string          `yaml:"summary,omitempty"`      // 文章摘要
+	WordCounts  int             `yaml:"words_counts,omitempty"` // 文件字数统计
+	ShortMark   string          `yaml:"short_mark,omitempty"`   // 文章短标记
+	Aliases     []string        `yaml:"aliases,omitempty"`
+	ForceUpdate ForceUpdateType `yaml:"force_update"` // 强制更新YamlHeader的内容
 }
 
 func (y *YamlHeader) String() string {
@@ -100,14 +106,14 @@ func NewBlogMD(path string) (*BlogMD, error) {
 		return nil, errors.Wrap(err, "yaml unmarshal got err")
 	}
 
-	// 返回初始的BlogMD实例
+	// 初始的BlogMD实例
 	md := &BlogMD{
 		Filepath:  path,
 		MDHeader:  header,
 		MDContent: match[2],
 	}
 
-	// MD信息更新
+	// MD Yaml信息更新
 	header.WordCounts = wordsCount(md.MDContent)
 	header.Draft = md.IsDraft()                                                           // 是否手稿
 	header.Weight = md.CalcArticleWeight()                                                // 文章权重
@@ -115,14 +121,8 @@ func NewBlogMD(path string) (*BlogMD, error) {
 	header.Categories = shim.ProcessStringsSlice(header.Categories, nil, strings.ToLower) // 文章分类统一转小写
 	header.Tags = shim.ProcessStringsSlice(header.Tags, nil, strings.ToLower)             // 文章标签统一转小写
 
-	// 精简token size
-	minContent, minLevel := minimiseContent(header.WordCounts, md.MDContent)
-	miniData := &MiniData{
-		MiniContent:   minContent,
-		MinLevel:      minLevel,
-		MinWordsCount: wordsCount(minContent),
-	}
-	md.MiniData = miniData
+	// MD Content Mini信息，后续用于OpenAI请求
+	md.MiniData = md.GenerateMiniData()
 
 	return md, nil
 }
@@ -157,6 +157,11 @@ func (md *BlogMD) IsDraft() bool {
 	return false
 }
 
+// NeedForceUpdate 是否需要强制更新Update信息
+func (md *BlogMD) NeedForceUpdate() bool {
+	return md.MDHeader.ForceUpdate != ""
+}
+
 // ShortMark 获取MD的shortMark短标记
 func (md *BlogMD) ShortMark() string {
 	header := md.MDHeader
@@ -165,6 +170,17 @@ func (md *BlogMD) ShortMark() string {
 	}
 
 	return header.ShortMark
+}
+
+func (md *BlogMD) GenerateMiniData() *MiniData {
+	// 精简token size
+	minContent, minLevel := minimiseContent(md.MDHeader.WordCounts, md.MDContent)
+	miniData := &MiniData{
+		MiniContent:   minContent,
+		MinLevel:      minLevel,
+		MinWordsCount: wordsCount(minContent),
+	}
+	return miniData
 }
 
 // mdCodeRegex markdown中的代码正则
