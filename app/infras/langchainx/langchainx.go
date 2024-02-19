@@ -12,7 +12,7 @@ import (
 type langChainX struct {
 }
 
-const APIToken = `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`
+const APIToken = `Your OpenAI-Token`
 const OpenAIMode = `gpt-3.5-turbo-16k`
 const SocksURL = `socks5://127.0.0.1:10553`
 
