@@ -57,10 +57,10 @@ func ParseConfig(filename string) error {
 		return errors.New("empty blog_summary config")
 	}
 
-	// prompt parse
-	if err = ParseAppPromptConfig(GetPromptConfigPath()); err != nil {
-		return errors.Wrapf(err, "parse app prompt config got err")
-	}
+	// // prompt parse
+	// if err = ParseAppPromptConfig(GetPromptConfigPath()); err != nil {
+	// 	return errors.Wrapf(err, "parse app prompt config got err")
+	// }
 
 	return nil
 }

@@ -1,4 +1,4 @@
-package config
+package openaix
 
 import (
 	"os"
@@ -6,10 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sashabaranov/go-openai"
 	"gopkg.in/yaml.v3"
-)
-
-const (
-	PromptKeySummaryBlog = "summary-blog"
 )
 
 // AppPromptConfig 提示词配置
@@ -22,23 +18,23 @@ type Prompt struct {
 	Name              string                         `yaml:"name"`
 	AIMode            string                         `yaml:"ai_mode"`
 	MaxTokens         int                            `yaml:"max_tokens"`
-	PredefinedPrompts []openai.ChatCompletionMessage `yaml:"predefined_prompts"`
+	PredefinedPrompts []openai.ChatCompletionMessage `yaml:"predefined_prompts"` // 预先定义的提示内容（例如定义AI角色）
 }
 
 var defaultPromptSetting map[string]*Prompt
 
 // ParseAppPromptConfig 解析App提示词配置文件
-func ParseAppPromptConfig(filename string) error {
+func ParseAppPromptConfig(filename string) (error, map[string]*Prompt) {
 	file, err := os.ReadFile(filename)
 	if err != nil {
-		return errors.Wrap(err, "read prompt yaml config got err")
+		return errors.Wrap(err, "read prompt yaml config got err"), nil
 	}
 
 	// 解析prompt app config
 	cfg := AppPromptConfig{}
 	err = yaml.Unmarshal(file, &cfg)
 	if err != nil {
-		return errors.Wrap(err, "parse app prompt yaml config got err")
+		return errors.Wrap(err, "parse app prompt yaml config got err"), nil
 	}
 
 	// 转成map
@@ -47,7 +43,7 @@ func ParseAppPromptConfig(filename string) error {
 		defaultPromptSetting[prompt.Name] = &prompt
 	}
 
-	return nil
+	return nil, defaultPromptSetting
 }
 
 // GetPrompt 获取指定的Prompt配置信息

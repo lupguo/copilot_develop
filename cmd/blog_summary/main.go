@@ -52,18 +52,24 @@ func buildBlogSummaryApp() (*application.BlogSummaryApp, error) {
 	// sqlite infra
 	sqliteDbInfra, err := dbs.NewBlogSummarySqliteInfra(config.GetDBFilePath())
 	if err != nil {
-		return nil, errors.Wrap(err, "new sqlite infra got err")
+		return nil, errors.Wrap(err, "NewBlogSummarySqliteInfra got err")
 	}
 
-	// openAI infra
-	openAIInfra, err := openaix.NewOpenAIHttpProxyClient()
+	// openAI Infra
+	openAIProxy, err := openaix.NewOpenAIHttpProxyClient()
 	if err != nil {
-		return nil, errors.Wrap(err, "new open ai http proxy client got err")
+		return nil, errors.Wrap(err, "NewOpenAIHttpProxyClient got err")
+	}
+
+	// openAI Service
+	aiService, err := service.NewAIService(openAIProxy, config.GetPromptConfigPath())
+	if err != nil {
+		return nil, errors.Wrap(err, "NewAIService got err")
 	}
 
 	// blog summary app
 	blogSummaryApp := application.NewBlogSummaryApp(
-		service.NewAIService(openAIInfra),
+		aiService,
 		sqliteDbInfra,
 	)
 	return blogSummaryApp, nil
