@@ -79,12 +79,13 @@ func (app *BlogSummaryApp) updateBlogYamlHeader(ctx context.Context, mdfile stri
 	record, err := app.sqliteInfra.SelBlogMDRecord(ctx, mdfile)
 	if err != nil { // db error
 		return err
-	} else if record != nil && md.NeedForceUpdate() == false { // 有记录和无强刷，则直接返回
+	} else if record != nil && md.NeedUpdate(record.WordCount) == false { // 有记录和无强刷，则直接返回
+		log.Infof("md[%v] needn't update", md.Filepath)
 		return nil
 	}
 
 	// 通过AIService更新md内容
-	if md.MDHeader.ForceUpdate == entity.UpdateALL {
+	if record == nil || md.MDHeader.ForceUpdate == entity.UpdateALL {
 		if err := app.refreshBlogSummaryAndKeywords(ctx, md); err != nil {
 			return errors.Wrapf(err, "app refreash md[%s] blog summary and keywords got err", mdfile)
 		}

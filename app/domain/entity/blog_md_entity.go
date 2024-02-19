@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -31,6 +32,9 @@ const (
 
 	// ArticleDraftMinLength 手稿文章字符判断
 	ArticleDraftMinLength = 50
+
+	// ArticleDiffMinLength 文章最小变更长度
+	ArticleDiffMinLength = 100
 )
 
 // ForceUpdateType 强制更新类型
@@ -157,9 +161,20 @@ func (md *BlogMD) IsDraft() bool {
 	return false
 }
 
-// NeedForceUpdate 是否需要强制更新Update信息
-func (md *BlogMD) NeedForceUpdate() bool {
-	return md.MDHeader.ForceUpdate != ""
+// NeedUpdate 是否需要强制更新Update信息，默认不更新，仅在meta开关控制\新旧文章差异较大时候更新
+func (md *BlogMD) NeedUpdate(oldWordsCount int) bool {
+	// 是否有meta开关控制刷新
+	if md.MDHeader.ForceUpdate != "" {
+		return true
+	}
+
+	// 新旧文章差异，较大改动才刷新
+	diffCounts := math.Abs(float64(md.MDHeader.WordCounts - oldWordsCount))
+	if diffCounts >= ArticleDiffMinLength {
+		return true
+	}
+
+	return false
 }
 
 // ShortMark 获取MD的shortMark短标记
