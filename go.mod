@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.0
 
 require (
-	github.com/hold7techs/go-shim v0.0.0-20230625064942-c5bda33e1c04
+	github.com/hold7techs/go-shim v0.1.0
 	github.com/labstack/echo/v4 v4.10.2
 	github.com/pkg/errors v0.9.1
 	github.com/sashabaranov/go-openai v1.17.11
@@ -40,5 +40,3 @@ require (
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 )
-
-replace github.com/hold7techs/go-shim => /private/data/projects/github.com/hold7techs/go-shim
